@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Micro ERP Dashboard</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --border: #e6e9f0;
+        --text: #1f2a44;
+        --muted: #6b7280;
+        --accent: #3b82f6;
+        --accent-dark: #2563eb;
+        --danger: #b00020;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: linear-gradient(180deg, #f8faff 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 24px 40px;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .title {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .pill {
+        background: #e8f1ff;
+        color: #1d4ed8;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .row { display: flex; gap: 16px; flex-wrap: wrap; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 16px;
+        border-radius: 10px;
+        min-width: 280px;
+        box-shadow: 0 6px 20px rgba(32, 41, 57, 0.06);
+      }
+      .card h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .card .section {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .field {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th, td {
+        border-bottom: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+        font-size: 13px;
+      }
+      th {
+        background: #f1f5f9;
+        font-weight: 600;
+        color: #334155;
+      }
+      tr:last-child td { border-bottom: none; }
+      .error { color: var(--danger); font-weight: 600; margin-top: 10px; }
+      .muted { color: var(--muted); }
+      .hidden { display: none; }
+      input {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        min-width: 180px;
+      }
+      input:focus {
+        outline: 2px solid rgba(59, 130, 246, 0.25);
+        border-color: var(--accent);
+      }
+      button {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover { background: var(--accent-dark); }
+      .spacer { height: 14px; }
+      @media (max-width: 900px) {
+        .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <div>
+          <h1 class="title">Micro ERP Dashboard</h1>
+          <div class="subtitle">Local API console for users, inventory, and orders.</div>
+        </div>
+        <div class="pill">LOCAL</div>
+      </div>
+
+      <div class="card" id="loginCard">
+        <h3>Login</h3>
+        <div class="field">
+          <input id="username" type="text" placeholder="username" value="admin" />
+          <input id="password" type="password" placeholder="password" value="admin123" />
+          <button id="loginBtn">Login</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="field">
+          <input id="tokenInput" type="text" placeholder="paste token here" style="width: 60%;" />
+          <button id="useTokenBtn">Use Token</button>
+        </div>
+        <div id="loginError" class="error hidden"></div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="row">
+        <div class="card">
+          <h3>Current User</h3>
+          <div id="meOutput" class="muted">Not logged in</div>
+        </div>
+        <div class="card">
+          <h3>Users</h3>
+          <div id="usersOutput" class="muted">No data</div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="row">
+        <div class="card" style="flex: 1;">
+          <h3>Inventory</h3>
+          <div id="inventoryOutput" class="muted">No data</div>
+        </div>
+        <div class="card" style="flex: 1;">
+          <h3>Orders</h3>
+          <div id="ordersOutput" class="muted">No data</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let authToken = null;
+
+      function setText(id, text) {
+        document.getElementById(id).textContent = text;
+      }
+
+      function showError(id, message) {
+        const el = document.getElementById(id);
+        el.textContent = message;
+        el.classList.remove("hidden");
+      }
+
+      function hideError(id) {
+        const el = document.getElementById(id);
+        el.textContent = "";
+        el.classList.add("hidden");
+      }
+
+      async function apiGet(path) {
+        const response = await fetch(path, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(`Request failed: ${response.status} ${detail}`);
+        }
+        return response.json();
+      }
+
+      async function login() {
+        hideError("loginError");
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          showError("loginError", `Login failed: ${response.status} ${detail}`);
+          return;
+        }
+        const data = await response.json();
+        authToken = data.token;
+        await refreshAll();
+      }
+
+      function renderTable(containerId, rows, columns) {
+        if (!rows || rows.length === 0) {
+          setText(containerId, "No data");
+          return;
+        }
+        const headers = columns.map((col) => `<th>${col}</th>`).join("");
+        const body = rows.map((row) => {
+          const cells = columns.map((col) => `<td>${row[col] ?? ""}</td>`).join("");
+          return `<tr>${cells}</tr>`;
+        }).join("");
+        document.getElementById(containerId).innerHTML =
+          `<table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>`;
+      }
+
+      async function refreshAll() {
+        try {
+          const me = await apiGet("/api/auth/me");
+          setText("meOutput", `${me.username} (${me.role})`);
+        } catch (error) {
+          setText("meOutput", "Not logged in");
+        }
+
+        try {
+          const users = await apiGet("/api/users");
+          renderTable("usersOutput", users, ["username", "role", "createdAt"]);
+        } catch (error) {
+          setText("usersOutput", "Failed to load");
+        }
+
+        try {
+          const inventory = await apiGet("/api/inventory");
+          renderTable("inventoryOutput", inventory, [
+            "itemId", "itemName", "unit", "safetyStock", "locationId", "locationName", "quantity"
+          ]);
+        } catch (error) {
+          setText("inventoryOutput", "Failed to load");
+        }
+
+        try {
+          const orders = await apiGet("/api/orders");
+          renderTable("ordersOutput", orders, ["orderId", "partnerId", "partnerName", "status", "createdAt"]);
+        } catch (error) {
+          setText("ordersOutput", "Failed to load");
+        }
+      }
+
+      document.getElementById("loginBtn").addEventListener("click", () => {
+        login().catch(() => showError("loginError", "Login failed"));
+      });
+      document.getElementById("useTokenBtn").addEventListener("click", () => {
+        const input = document.getElementById("tokenInput").value.trim();
+        if (!input) {
+          showError("loginError", "Token is empty");
+          return;
+        }
+        authToken = input;
+        refreshAll().catch(() => showError("loginError", "Failed to load with token"));
+      });
+    </script>
+  </body>
+</html>

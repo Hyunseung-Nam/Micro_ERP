@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/micro_erp?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${ERP_DB_USER:root}
+    password: ${ERP_DB_PASSWORD:root}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    issuer: micro-erp-local
+    secret: ${ERP_JWT_SECRET:change_this_secret_change_this_secret}
+    ttl-minutes: 120
+  seed:
+    admin-username: ${ERP_SEED_ADMIN_USERNAME:admin}
+    admin-password: ${ERP_SEED_ADMIN_PASSWORD:admin123}
