@@ -6,6 +6,8 @@ import com.microerp.server.service.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,11 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 역할: 발주 API를 제공한다.
- * 책임: 발주 조회, 생성, 종결 엔드포인트 제공.
- * 외부 의존성: Spring Web.
- */
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -27,44 +24,30 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    /**
-     * 목적: 발주 목록을 조회한다.
-     * Args: 없음
-     * Returns:
-     *  - ResponseEntity<List<OrderResponse>>: 발주 목록
-     * Side Effects: 없음
-     * Raises: 없음
-     */
     @GetMapping
+    @PreAuthorize("hasAuthority('SCOPE_order.read') or hasRole('ADMIN')")
     public ResponseEntity<List<OrderResponse>> getOrders() {
         return ResponseEntity.ok(orderService.getOrders());
     }
 
-    /**
-     * 목적: 발주를 생성한다.
-     * Args:
-     *  - request: 발주 생성 요청
-     * Returns:
-     *  - ResponseEntity<OrderResponse>: 생성된 발주
-     * Side Effects: 없음
-     * Raises: 없음
-     */
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderCreateRequest request) {
-        return ResponseEntity.ok(orderService.createOrder(request));
+    @PreAuthorize("hasAuthority('SCOPE_order.create') or hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> createOrder(
+            @Valid @RequestBody OrderCreateRequest request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(orderService.createOrder(request, authentication.getName()));
     }
 
-    /**
-     * 목적: 발주를 종결한다.
-     * Args:
-     *  - orderId: 발주 ID
-     * Returns:
-     *  - ResponseEntity<OrderResponse>: 종결된 발주
-     * Side Effects: 없음
-     * Raises: 없음
-     */
+    @PostMapping("/{orderId}/approve")
+    @PreAuthorize("hasAuthority('SCOPE_approval.approve') or hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> approveOrder(@PathVariable Long orderId, Authentication authentication) {
+        return ResponseEntity.ok(orderService.approveOrder(orderId, authentication.getName()));
+    }
+
     @PostMapping("/{orderId}/close")
-    public ResponseEntity<OrderResponse> closeOrder(@PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.closeOrder(orderId));
+    @PreAuthorize("hasAuthority('SCOPE_order.close') or hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> closeOrder(@PathVariable Long orderId, Authentication authentication) {
+        return ResponseEntity.ok(orderService.closeOrder(orderId, authentication.getName()));
     }
 }

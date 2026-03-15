@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from config import APP_NAME, get_log_dir
-from modules import storage
+from modules import master_data, storage
 from modules.controller import MainController
 from ui.mainwindow import MainWindow
 
@@ -51,6 +51,7 @@ def main():
     """
     _setup_logging()
     storage.ensure_data_files()
+    master_data.initialize_if_empty()
     app = QApplication([])
     window = MainWindow()
     controller = MainController(window)

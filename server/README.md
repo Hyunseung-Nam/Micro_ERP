@@ -22,7 +22,8 @@ CREATE DATABASE micro_erp CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 ## 실행
 ```bash
-cd Micro_ERP_System/server
+cd /Users/hyunseung/dev/Micro_ERP/server
+export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
 mvn spring-boot:run
 ```
 
@@ -31,11 +32,22 @@ mvn spring-boot:run
 
 ## 웹 대시보드
 - 브라우저에서 `http://localhost:8080/dashboard.html` 접속
-- 로그인 후 사용자/재고/주문 데이터 조회
+- 로그인 후 운영 콘솔(재고 리스크/KPI/승인함/감사로그) 조회
 
 ## 기본 계정
 - 사용자명: `admin`
 - 비밀번호: `admin123`
+- 사용자명: `manager` / 비밀번호: `manager123`
+- 사용자명: `staff` / 비밀번호: `staff123`
+- 사용자명: `auditor` / 비밀번호: `auditor123`
+
+## RBAC / 승인 / 감사
+- 역할: `ADMIN`, `MANAGER`, `STAFF`, `AUDITOR`
+- 승인 API: `/api/approvals`
+- 감사 로그 API: `/api/audit/logs`
+- 업종 워크플로우 API:
+  - 병원 사용량 차감: `POST /api/workflows/hospital/consume`
+  - 쇼핑몰 반품/교환: `POST /api/workflows/ecommerce/return-exchange`
 
 ## API 테스트 (curl)
 ```bash
@@ -85,6 +97,14 @@ curl -X POST http://localhost:8080/api/orders ^
 # 발주 종결
 curl -X POST http://localhost:8080/api/orders/1/close ^
   -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```bash
+# 승인 요청 생성 (재고 조정)
+curl -X POST http://localhost:8080/api/approvals ^
+  -H "Content-Type: application/json" ^
+  -H "Authorization: Bearer YOUR_TOKEN" ^
+  -d "{\"requestType\":\"INVENTORY_ADJUST\",\"requestPayload\":\"{\\\"itemId\\\":\\\"ITEM-001\\\",\\\"locationId\\\":\\\"LOC-001\\\",\\\"deltaQuantity\\\":-20,\\\"reason\\\":\\\"manual\\\"}\"}"
 ```
 
 ## 주의

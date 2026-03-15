@@ -80,11 +80,27 @@ public class DataSeeder implements ApplicationRunner {
     private void seedAdminUser() {
         Optional<User> existing = userRepository.findById(adminUsername);
         if (existing.isPresent()) {
+            seedDefaultUsers();
             return;
         }
         String hashed = passwordEncoder.encode(adminPassword);
         userRepository.save(new User(adminUsername, hashed, "ADMIN"));
         logger.info("Seeded admin user {}", adminUsername);
+        seedDefaultUsers();
+    }
+
+    private void seedDefaultUsers() {
+        seedUserIfMissing("manager", "manager123", "MANAGER");
+        seedUserIfMissing("staff", "staff123", "STAFF");
+        seedUserIfMissing("auditor", "auditor123", "AUDITOR");
+    }
+
+    private void seedUserIfMissing(String username, String rawPassword, String role) {
+        if (userRepository.findById(username).isPresent()) {
+            return;
+        }
+        userRepository.save(new User(username, passwordEncoder.encode(rawPassword), role));
+        logger.info("Seeded {} user {}", role, username);
     }
 
     private void seedReferenceData() {

@@ -76,7 +76,7 @@ def validate_return(payload):
         return error
     return_type = payload.get("return_type")
     if return_type not in {"CUSTOMER", "SUPPLIER"}:
-        return "Invalid return type"
+        return "반품 유형은 CUSTOMER 또는 SUPPLIER 여야 합니다."
     return None
 
 
@@ -110,12 +110,23 @@ def _validate_common(payload, required_fields):
     """
     if not isinstance(payload, dict):
         _LOGGER.warning("Payload is not dict")
-        return "Invalid payload"
+        return "입력 데이터 형식이 올바르지 않습니다."
+
+    field_labels = {
+        "item_id": "품목 ID",
+        "quantity": "수량",
+        "unit": "단위",
+        "location_id": "위치",
+        "from_location": "출발 위치",
+        "to_location": "도착 위치",
+        "partner_id": "거래처",
+    }
+
     for field in required_fields:
         value = payload.get(field)
         if value is None or value == "":
-            return f"Missing {field}"
+            return f"{field_labels.get(field, field)} 값을 입력해 주세요."
     quantity = payload.get("quantity", 0)
     if quantity <= 0:
-        return "Quantity must be positive"
+        return "수량은 1 이상이어야 합니다."
     return None

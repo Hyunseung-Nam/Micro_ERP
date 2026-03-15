@@ -25,15 +25,18 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuditLogService auditLogService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            AuditLogService auditLogService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -58,6 +61,7 @@ public class AuthService {
 
             String token = jwtService.generateToken(user);
             logger.info("User {} authenticated", user.getUsername());
+            auditLogService.log(user.getUsername(), "AUTH_LOGIN", "USER", user.getUsername(), "login success");
             return new AuthResponse(token, user.getUsername(), user.getRole());
         } catch (DataAccessException ex) {
             logger.error("Database error during login", ex);

@@ -4,6 +4,7 @@ import com.microerp.server.dto.UserResponse;
 import com.microerp.server.service.UserService;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +32,7 @@ public class UserController {
      * Raises: 없음
      */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponse>> getUsers() {
         return ResponseEntity.ok(userService.getUsers());
     }

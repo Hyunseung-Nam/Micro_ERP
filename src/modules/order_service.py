@@ -1,26 +1,18 @@
 import logging
 
 from modules import event_engine, validator
+from modules.service_result import ServiceResult
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def create_order(payload):
-    """
-    목적: 발주 이벤트를 생성하고 기록한다.
-    Args:
-        payload (dict): 발주 데이터
-    Returns:
-        dict|None: 기록된 이벤트
-    Side Effects:
-        events.json 쓰기
-    Raises:
-        없음
-    """
+    """발주 이벤트를 생성하고 기록한다."""
     error = validator.validate_order(payload)
     if error:
         _LOGGER.warning("Order validation failed: %s", error)
-        return None
+        return ServiceResult(ok=False, message=error)
+
     event = {
         "event_type": "ORDER",
         "item_id": payload["item_id"],
@@ -31,22 +23,14 @@ def create_order(payload):
         "reference_id": payload.get("partner_id"),
         "reason": payload.get("reason", ""),
     }
-    return event_engine.record_event(event)
+    saved = event_engine.record_event(event)
+    if not saved:
+        return ServiceResult(ok=False, message="발주를 저장하지 못했습니다. 로그를 확인해 주세요.")
+    return ServiceResult(ok=True, message="발주가 등록되었습니다.", payload=saved)
 
 
 def link_inbound(order_id, inbound_event_id):
-    """
-    목적: 입고 이벤트와 발주 이벤트를 연결한다.
-    Args:
-        order_id (str): 발주 이벤트 ID
-        inbound_event_id (str): 입고 이벤트 ID
-    Returns:
-        dict|None: 기록된 이벤트
-    Side Effects:
-        events.json 쓰기
-    Raises:
-        없음
-    """
+    """입고 이벤트와 발주 이벤트를 연결한다."""
     event = {
         "event_type": "ORDER",
         "item_id": None,
@@ -57,21 +41,14 @@ def link_inbound(order_id, inbound_event_id):
         "reference_id": f"{order_id}:{inbound_event_id}",
         "reason": "Link inbound",
     }
-    return event_engine.record_event(event)
+    saved = event_engine.record_event(event)
+    if not saved:
+        return ServiceResult(ok=False, message="발주 연결을 저장하지 못했습니다.")
+    return ServiceResult(ok=True, payload=saved)
 
 
 def close_order(order_id):
-    """
-    목적: 발주를 종료 처리한다.
-    Args:
-        order_id (str): 발주 이벤트 ID
-    Returns:
-        dict|None: 기록된 이벤트
-    Side Effects:
-        events.json 쓰기
-    Raises:
-        없음
-    """
+    """발주를 종료 처리한다."""
     event = {
         "event_type": "ORDER",
         "item_id": None,
@@ -82,4 +59,7 @@ def close_order(order_id):
         "reference_id": order_id,
         "reason": "Close order",
     }
-    return event_engine.record_event(event)
+    saved = event_engine.record_event(event)
+    if not saved:
+        return ServiceResult(ok=False, message="발주 종료를 저장하지 못했습니다.")
+    return ServiceResult(ok=True, payload=saved)

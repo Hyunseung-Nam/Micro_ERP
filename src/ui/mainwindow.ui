@@ -26,6 +26,13 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QLabel" name="userInfoLabel">
+       <property name="text">
+        <string>User: Local</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
@@ -86,6 +93,20 @@
       <widget class="QPushButton" name="refreshButton">
        <property name="text">
         <string>Refresh</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="8">
+      <widget class="QPushButton" name="approvalButton">
+       <property name="text">
+        <string>Approvals</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="9">
+      <widget class="QPushButton" name="workflowButton">
+       <property name="text">
+        <string>Industry Workflow</string>
        </property>
       </widget>
      </item>

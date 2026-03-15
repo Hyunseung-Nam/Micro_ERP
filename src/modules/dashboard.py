@@ -95,10 +95,11 @@ def shortage_items(inventory, items):
         없음
     """
     shortages = []
-    item_map = {item.get("item_id"): item for item in items}
-    for item_id, entry in inventory.items():
-        safety = item_map.get(item_id, {}).get("safety_stock", 0)
-        if entry.get("total", 0) < safety:
+    item_map = {item.get("item_id"): item for item in items if item.get("item_id")}
+    for item_id, item in item_map.items():
+        safety = item.get("safety_stock", 0) or 0
+        total = inventory.get(item_id, {}).get("total", 0)
+        if total < safety:
             shortages.append(item_id)
     return shortages
 

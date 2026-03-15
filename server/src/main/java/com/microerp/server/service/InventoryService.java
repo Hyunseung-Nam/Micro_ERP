@@ -19,11 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 역할: 재고 조회 및 조정 로직을 제공한다.
- * 책임: 재고 목록 조회, 수량 조정 처리.
- * 외부 의존성: Spring Data JPA.
- */
 @Service
 public class InventoryService {
     private static final Logger logger = LoggerFactory.getLogger(InventoryService.class);
@@ -31,27 +26,20 @@ public class InventoryService {
     private final InventoryRepository inventoryRepository;
     private final ItemRepository itemRepository;
     private final LocationRepository locationRepository;
+    private final AuditLogService auditLogService;
 
     public InventoryService(
             InventoryRepository inventoryRepository,
             ItemRepository itemRepository,
-            LocationRepository locationRepository
+            LocationRepository locationRepository,
+            AuditLogService auditLogService
     ) {
         this.inventoryRepository = inventoryRepository;
         this.itemRepository = itemRepository;
         this.locationRepository = locationRepository;
+        this.auditLogService = auditLogService;
     }
 
-    /**
-     * 목적: 재고 목록을 조회한다.
-     * Args: 없음
-     * Returns:
-     *  - List<InventoryItemResponse>: 재고 목록
-     * Side Effects:
-     *  - 조회 로그를 기록한다.
-     * Raises:
-     *  - ApiException: DB 오류 발생 시
-     */
     @Transactional(readOnly = true)
     public List<InventoryItemResponse> getInventory() {
         try {
@@ -65,18 +53,8 @@ public class InventoryService {
         }
     }
 
-    /**
-     * 목적: 재고 수량을 조정한다.
-     * Args:
-     *  - request: 재고 조정 요청
-     * Returns:
-     *  - InventoryItemResponse: 변경된 재고
-     * Side Effects:
-     *  - 재고를 저장한다.
-     * Raises:
-     *  - ApiException: 입력 오류 또는 DB 오류 발생 시
-     */
-    public InventoryItemResponse adjustInventory(InventoryAdjustRequest request) {
+    @Transactional
+    public InventoryItemResponse adjustInventory(InventoryAdjustRequest request, String actor, String reason) {
         try {
             Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Item not found"));
@@ -94,6 +72,13 @@ public class InventoryService {
             inventory.setQuantity(newQuantity);
             Inventory saved = inventoryRepository.save(inventory);
             logger.info("Adjusted inventory for item {} at {}", item.getItemId(), location.getLocationId());
+            auditLogService.log(
+                actor,
+                "INVENTORY_ADJUST",
+                "INVENTORY",
+                item.getItemId() + "@" + location.getLocationId(),
+                "delta=" + request.getDeltaQuantity() + "; reason=" + (reason == null ? "" : reason)
+            );
             return toResponse(saved);
         } catch (DataAccessException ex) {
             logger.error("Database error while adjusting inventory", ex);
@@ -101,15 +86,6 @@ public class InventoryService {
         }
     }
 
-    /**
-     * 목적: 재고 엔티티를 응답 DTO로 변환한다.
-     * Args:
-     *  - inventory: 재고 엔티티
-     * Returns:
-     *  - InventoryItemResponse: 응답 DTO
-     * Side Effects: 없음
-     * Raises: 없음
-     */
     private InventoryItemResponse toResponse(Inventory inventory) {
         Item item = inventory.getItem();
         Location location = inventory.getLocation();

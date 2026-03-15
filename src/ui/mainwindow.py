@@ -1,24 +1,23 @@
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import QFile
+from PySide6.QtCore import QFile, Qt
+from PySide6.QtGui import QFont
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
+    QLabel,
     QLineEdit,
     QMainWindow,
     QPushButton,
-    QLabel,
     QTableWidget,
     QWidget,
 )
 
 
 class MainWindow(QMainWindow):
-    """
-    역할: 메인 UI 로딩과 위젯 참조 제공
-    책임: UI 파일 로딩, 위젯 바인딩, 메인 화면 표시
-    외부 의존성: PySide6, `src/ui/mainwindow.ui`
-    """
+    """메인 UI 로딩과 위젯 참조 제공."""
 
     def __init__(self):
         super().__init__()
@@ -27,19 +26,10 @@ class MainWindow(QMainWindow):
         if isinstance(self.ui, QWidget):
             self.setCentralWidget(self.ui)
         self._bind_widgets()
+        self._apply_style()
 
     def _load_ui(self, filename):
-        """
-        목적: Qt Designer UI 파일을 로딩한다.
-        Args:
-            filename (str): UI 파일명
-        Returns:
-            QWidget: 로딩된 UI 위젯
-        Side Effects:
-            UI 파일 접근
-        Raises:
-            없음
-        """
+        """Qt Designer UI 파일을 로딩한다."""
         ui_path = Path(__file__).resolve().parent / filename
         loader = QUiLoader()
         file = QFile(str(ui_path))
@@ -56,17 +46,7 @@ class MainWindow(QMainWindow):
             file.close()
 
     def _bind_widgets(self):
-        """
-        목적: 주요 위젯을 속성으로 연결한다.
-        Args:
-            없음
-        Returns:
-            None
-        Side Effects:
-            위젯 속성 설정
-        Raises:
-            없음
-        """
+        """주요 위젯을 속성으로 연결한다."""
         self.searchLineEdit = self.ui.findChild(QLineEdit, "searchLineEdit")
         self.inventoryTable = self.ui.findChild(QTableWidget, "inventoryTable")
         self.inboundButton = self.ui.findChild(QPushButton, "inboundButton")
@@ -77,5 +57,65 @@ class MainWindow(QMainWindow):
         self.dashboardButton = self.ui.findChild(QPushButton, "dashboardButton")
         self.undoButton = self.ui.findChild(QPushButton, "undoButton")
         self.refreshButton = self.ui.findChild(QPushButton, "refreshButton")
+        self.approvalButton = self.ui.findChild(QPushButton, "approvalButton")
+        self.workflowButton = self.ui.findChild(QPushButton, "workflowButton")
         self.safetyBadgeLabel = self.ui.findChild(QLabel, "safetyBadgeLabel")
         self.statusLabel = self.ui.findChild(QLabel, "statusLabel")
+        self.userInfoLabel = self.ui.findChild(QLabel, "userInfoLabel")
+
+    def _apply_style(self):
+        """가독성 중심 기본 스타일과 테이블 동작을 설정한다."""
+        self.resize(1320, 760)
+        self.setFont(QFont("Apple SD Gothic Neo", 11))
+        self.setStyleSheet(
+            """
+            QWidget { background: #f4f6f8; color: #1c1f23; }
+            QLineEdit {
+                background: #ffffff;
+                border: 1px solid #d0d7de;
+                border-radius: 8px;
+                padding: 8px;
+            }
+            QPushButton {
+                background: #ffffff;
+                border: 1px solid #c9d1d9;
+                border-radius: 8px;
+                padding: 8px 12px;
+                min-height: 34px;
+            }
+            QPushButton:hover { background: #f0f4f8; }
+            QTableWidget {
+                background: #ffffff;
+                border: 1px solid #d7dde4;
+                border-radius: 10px;
+                gridline-color: #eef1f4;
+                selection-background-color: #d9ecff;
+            }
+            QHeaderView::section {
+                background: #f7f9fb;
+                color: #4b5563;
+                border: none;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 8px;
+                font-weight: 600;
+            }
+            """
+        )
+
+        if self.searchLineEdit:
+            self.searchLineEdit.setPlaceholderText("품목 ID/이름/카테고리/위치 검색")
+
+        if isinstance(self.inventoryTable, QTableWidget):
+            table = self.inventoryTable
+            table.setAlternatingRowColors(True)
+            table.setSelectionBehavior(QAbstractItemView.SelectRows)
+            table.setSelectionMode(QAbstractItemView.SingleSelection)
+            table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+            table.setSortingEnabled(True)
+            table.verticalHeader().setVisible(False)
+            header = table.horizontalHeader()
+            header.setSectionResizeMode(QHeaderView.Stretch)
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+            table.setFocusPolicy(Qt.NoFocus)
