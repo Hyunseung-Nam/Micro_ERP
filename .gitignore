@@ -13,3 +13,5 @@ ARCHITECTURE.md
 prompt.txt
 develop.txt
 Script/
+.m2/
+data/backup/
