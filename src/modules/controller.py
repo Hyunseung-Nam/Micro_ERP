@@ -9,8 +9,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -185,10 +185,17 @@ class MainController:
             self.confirm_move(data)
 
     def confirm_inbound(self, data):
+        missing = self._missing_required(data, ("item_id", "location_id", "unit"))
+        if missing:
+            self._show_info(f"입고 등록을 위해 다음 항목을 입력해 주세요: {missing}")
+            return
+        if data.get("quantity", 0) <= 0:
+            self._show_info("입고 수량은 1 이상으로 입력해 주세요.")
+            return
         if self.use_api:
             result = self.api_client.adjust_inventory(data["item_id"], data["location_id"], data["quantity"])
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"입고 등록에 실패했습니다.\n사유: {result.message}")
                 return
             self._show_info("입고 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
@@ -198,10 +205,17 @@ class MainController:
         self._handle_result(result)
 
     def confirm_outbound(self, data):
+        missing = self._missing_required(data, ("item_id", "location_id", "unit"))
+        if missing:
+            self._show_info(f"출고 등록을 위해 다음 항목을 입력해 주세요: {missing}")
+            return
+        if data.get("quantity", 0) <= 0:
+            self._show_info("출고 수량은 1 이상으로 입력해 주세요.")
+            return
         if self.use_api:
             result = self.api_client.adjust_inventory(data["item_id"], data["location_id"], -data["quantity"])
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"출고 등록에 실패했습니다.\n사유: {result.message}")
                 return
             self._show_info("출고 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
@@ -211,6 +225,13 @@ class MainController:
         self._handle_result(result)
 
     def confirm_order(self, data):
+        missing = self._missing_required(data, ("partner_id", "item_id", "unit"))
+        if missing:
+            self._show_info(f"발주 등록을 위해 다음 항목을 입력해 주세요: {missing}")
+            return
+        if data.get("quantity", 0) <= 0:
+            self._show_info("발주 수량은 1 이상으로 입력해 주세요.")
+            return
         if self.use_api:
             result = self.api_client.create_order(
                 partner_id=data["partner_id"],
@@ -219,21 +240,28 @@ class MainController:
                 unit=data["unit"],
             )
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"발주 등록에 실패했습니다.\n사유: {result.message}")
                 return
             order_id = result.payload.get("orderId", "")
-            self._show_info(f"발주가 생성되었습니다. orderId={order_id}")
+            self._show_info(f"발주가 생성되었습니다. 발주 번호: {order_id}")
             return
 
         result = order_service.create_order(data)
         self._handle_result(result)
 
     def confirm_return(self, data):
+        missing = self._missing_required(data, ("item_id", "location_id", "unit"))
+        if missing:
+            self._show_info(f"반품 등록을 위해 다음 항목을 입력해 주세요: {missing}")
+            return
+        if data.get("quantity", 0) <= 0:
+            self._show_info("반품 수량은 1 이상으로 입력해 주세요.")
+            return
         if self.use_api:
             delta = data["quantity"] if data.get("return_type") == "CUSTOMER" else -data["quantity"]
             result = self.api_client.adjust_inventory(data["item_id"], data["location_id"], delta)
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"반품 등록에 실패했습니다.\n사유: {result.message}")
                 return
             self._show_info("반품 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
@@ -243,14 +271,24 @@ class MainController:
         self._handle_result(result)
 
     def confirm_move(self, data):
+        missing = self._missing_required(data, ("item_id", "from_location", "to_location", "unit"))
+        if missing:
+            self._show_info(f"재고 이동 등록을 위해 다음 항목을 입력해 주세요: {missing}")
+            return
+        if data.get("quantity", 0) <= 0:
+            self._show_info("이동 수량은 1 이상으로 입력해 주세요.")
+            return
+        if data.get("from_location", "").strip() == data.get("to_location", "").strip():
+            self._show_info("출발 위치와 도착 위치를 다르게 입력해 주세요.")
+            return
         if self.use_api:
             out_result = self.api_client.adjust_inventory(data["item_id"], data["from_location"], -data["quantity"])
             if not out_result.ok:
-                self._show_error(out_result.message)
+                self._show_error(f"재고 이동(출발 위치 차감)에 실패했습니다.\n사유: {out_result.message}")
                 return
             in_result = self.api_client.adjust_inventory(data["item_id"], data["to_location"], data["quantity"])
             if not in_result.ok:
-                self._show_error(in_result.message)
+                self._show_error(f"재고 이동(도착 위치 반영)에 실패했습니다.\n사유: {in_result.message}")
                 return
             self._show_info("재고 이동 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
@@ -435,21 +473,18 @@ class MainController:
             )
             return
 
-        action, ok = QInputDialog.getItem(
-            self.window,
-            "승인함",
-            "실행 작업",
-            ["대기 목록 조회", "승인", "반려", "재고조정 승인요청"],
-            0,
-            False,
+        action = self._show_compact_action_dialog(
+            title="승인함",
+            help_text="승인 대기 목록 확인 또는 승인 처리를 선택하세요.",
+            actions=["대기 목록 조회", "승인", "반려", "재고조정 승인요청"],
         )
-        if not ok:
+        if not action:
             return
 
         if action == "대기 목록 조회":
             result = self.api_client.list_approvals("PENDING")
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"승인 목록 조회에 실패했습니다.\n사유: {result.message}")
                 return
             payload = result.payload if isinstance(result.payload, list) else []
             if not payload:
@@ -460,47 +495,68 @@ class MainController:
             return
 
         if action in {"승인", "반려"}:
-            approval_id, ok = QInputDialog.getInt(self.window, "승인 처리", "승인 ID", 1, 1)
-            if not ok:
+            form = self._show_form_dialog(
+                title=f"{action} 처리",
+                help_text="승인 ID를 입력해 요청을 처리합니다.",
+                fields=[{"name": "approval_id", "label": "승인 ID", "type": "int", "default": 1}],
+                submit_label=f"{action} 실행",
+            )
+            if not form:
                 return
+            approval_id = int(form.get("approval_id") or 0)
             if action == "승인":
                 result = self.api_client.approve(approval_id)
             else:
-                reason, ok = QInputDialog.getText(self.window, "반려 처리", "반려 사유")
-                if not ok:
+                reason_form = self._show_form_dialog(
+                    title="반려 사유 입력",
+                    help_text="반려 사유를 입력하면 요청자에게 더 빠르게 공유할 수 있습니다.",
+                    fields=[{"name": "reason", "label": "반려 사유", "type": "text", "default": ""}],
+                    submit_label="반려 확정",
+                )
+                if not reason_form:
                     return
+                reason = reason_form.get("reason", "")
                 result = self.api_client.reject(approval_id, reason)
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"{action} 처리에 실패했습니다.\n사유: {result.message}")
                 return
             self._show_info(f"승인 요청 {approval_id} 처리 완료")
             self.refresh_inventory_table()
             return
 
-        item_id, ok = QInputDialog.getText(self.window, "승인요청 생성", "품목 ID")
-        if not ok:
+        request_form = self._show_form_dialog(
+            title="재고조정 승인요청 생성",
+            help_text="즉시 반영이 아닌 승인 프로세스로 재고 조정을 요청합니다.",
+            fields=[
+                {"name": "item_id", "label": "품목 ID", "type": "text", "default": ""},
+                {"name": "location_id", "label": "위치 ID", "type": "text", "default": ""},
+                {"name": "delta", "label": "증감 수량(+/-)", "type": "int", "default": 0},
+                {"name": "reason", "label": "사유", "type": "text", "default": ""},
+            ],
+            submit_label="요청 등록",
+        )
+        if not request_form:
             return
-        location_id, ok = QInputDialog.getText(self.window, "승인요청 생성", "위치 ID")
-        if not ok:
-            return
-        delta, ok = QInputDialog.getInt(self.window, "승인요청 생성", "증감 수량(+/-)", 0, -1000000, 1000000)
-        if not ok:
-            return
-        reason, ok = QInputDialog.getText(self.window, "승인요청 생성", "사유")
-        if not ok:
+
+        item_id = request_form.get("item_id", "").strip()
+        location_id = request_form.get("location_id", "").strip()
+        reason = request_form.get("reason", "").strip()
+        delta = int(request_form.get("delta", 0))
+        if not item_id or not location_id:
+            self._show_info("품목 ID와 위치 ID를 입력해 주세요.")
             return
 
         result = self.api_client.create_approval(
             "INVENTORY_ADJUST",
             {
-                "itemId": item_id.strip(),
-                "locationId": location_id.strip(),
+                "itemId": item_id,
+                "locationId": location_id,
                 "deltaQuantity": int(delta),
-                "reason": reason.strip(),
+                "reason": reason,
             },
         )
         if not result.ok:
-            self._show_error(result.message)
+            self._show_error(f"승인 요청 등록에 실패했습니다.\n사유: {result.message}")
             return
         approval_id = (result.payload or {}).get("approvalId", "")
         self._show_info(f"승인 요청이 등록되었습니다. 승인 ID={approval_id}")
@@ -513,59 +569,69 @@ class MainController:
             )
             return
 
-        workflow, ok = QInputDialog.getItem(
-            self.window,
-            "업종 워크플로우",
-            "업무 시나리오",
-            ["병원 사용량 차감", "쇼핑몰 반품/교환"],
-            0,
-            False,
+        workflow = self._show_compact_action_dialog(
+            title="업종 워크플로우",
+            help_text="업종별 프로세스를 선택해 표준 업무를 빠르게 처리합니다.",
+            actions=["병원 사용량 차감", "쇼핑몰 반품/교환"],
         )
-        if not ok:
+        if not workflow:
             return
 
         if workflow == "병원 사용량 차감":
-            item_id, ok = QInputDialog.getText(self.window, "병원 워크플로우", "품목 ID")
-            if not ok:
+            form = self._show_form_dialog(
+                title="병원 사용량 차감",
+                help_text="부서별 사용 내역을 재고에서 차감합니다.",
+                fields=[
+                    {"name": "item_id", "label": "품목 ID", "type": "text", "default": ""},
+                    {"name": "location_id", "label": "위치 ID", "type": "text", "default": ""},
+                    {"name": "quantity", "label": "사용 수량", "type": "int", "default": 1},
+                    {"name": "department", "label": "부서", "type": "text", "default": "ER"},
+                    {"name": "note", "label": "메모", "type": "text", "default": ""},
+                ],
+                submit_label="사용량 반영",
+            )
+            if not form:
                 return
-            location_id, ok = QInputDialog.getText(self.window, "병원 워크플로우", "위치 ID")
-            if not ok:
-                return
-            quantity, ok = QInputDialog.getInt(self.window, "병원 워크플로우", "사용 수량", 1, 1)
-            if not ok:
-                return
-            department, ok = QInputDialog.getText(self.window, "병원 워크플로우", "부서", text="ER")
-            if not ok:
-                return
-            note, ok = QInputDialog.getText(self.window, "병원 워크플로우", "메모")
-            if not ok:
+            item_id = form.get("item_id", "").strip()
+            location_id = form.get("location_id", "").strip()
+            quantity = int(form.get("quantity", 0) or 0)
+            department = form.get("department", "").strip()
+            note = form.get("note", "").strip()
+            if not item_id or not location_id or not department or quantity <= 0:
+                self._show_info("품목/위치/부서와 1 이상의 수량을 입력해 주세요.")
                 return
 
             result = self.api_client.hospital_consume(item_id, location_id, quantity, department, note)
             if not result.ok:
-                self._show_error(result.message)
+                self._show_error(f"병원 사용량 반영에 실패했습니다.\n사유: {result.message}")
                 return
             self._show_info("병원 사용량 차감이 반영되었습니다.")
             self.refresh_inventory_table()
             return
 
-        item_id, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "품목 ID")
-        if not ok:
+        form = self._show_form_dialog(
+            title="쇼핑몰 반품/교환",
+            help_text="반품 접수와 교환 출고를 한 번에 처리합니다.",
+            fields=[
+                {"name": "item_id", "label": "품목 ID", "type": "text", "default": ""},
+                {"name": "return_location", "label": "반품 위치 ID", "type": "text", "default": ""},
+                {"name": "ship_location", "label": "교환 출고 위치 ID", "type": "text", "default": ""},
+                {"name": "return_qty", "label": "반품 수량", "type": "int", "default": 1},
+                {"name": "exchange_qty", "label": "교환 수량", "type": "int", "default": 0},
+                {"name": "order_no", "label": "마켓 주문번호", "type": "text", "default": ""},
+            ],
+            submit_label="반품/교환 반영",
+        )
+        if not form:
             return
-        return_location, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "반품 위치 ID")
-        if not ok:
-            return
-        ship_location, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "교환 출고 위치 ID")
-        if not ok:
-            return
-        return_qty, ok = QInputDialog.getInt(self.window, "쇼핑몰 워크플로우", "반품 수량", 1, 1)
-        if not ok:
-            return
-        exchange_qty, ok = QInputDialog.getInt(self.window, "쇼핑몰 워크플로우", "교환 수량", 0, 0)
-        if not ok:
-            return
-        order_no, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "마켓 주문번호")
-        if not ok:
+        item_id = form.get("item_id", "").strip()
+        return_location = form.get("return_location", "").strip()
+        ship_location = form.get("ship_location", "").strip()
+        return_qty = int(form.get("return_qty", 0) or 0)
+        exchange_qty = int(form.get("exchange_qty", 0) or 0)
+        order_no = form.get("order_no", "").strip()
+        if not item_id or not return_location or not ship_location or not order_no or return_qty <= 0 or exchange_qty < 0:
+            self._show_info("필수 항목(품목/위치/주문번호)과 수량을 확인해 주세요.")
             return
 
         result = self.api_client.ecommerce_return_exchange(
@@ -577,7 +643,7 @@ class MainController:
             order_no,
         )
         if not result.ok:
-            self._show_error(result.message)
+            self._show_error(f"쇼핑몰 반품/교환 반영에 실패했습니다.\n사유: {result.message}")
             return
         self._show_info("쇼핑몰 반품/교환 처리가 반영되었습니다.")
         self.refresh_inventory_table()
@@ -783,3 +849,102 @@ class MainController:
 
     def _show_info(self, message):
         QMessageBox.information(self.window, "안내", message)
+
+    def _missing_required(self, data, required_keys):
+        labels = {
+            "item_id": "품목 ID",
+            "location_id": "위치 ID",
+            "from_location": "출발 위치",
+            "to_location": "도착 위치",
+            "partner_id": "거래처",
+            "unit": "단위",
+        }
+        missing = [labels.get(key, key) for key in required_keys if not str(data.get(key, "")).strip()]
+        return ", ".join(missing)
+
+    def _show_compact_action_dialog(self, title, help_text, actions):
+        dialog = QDialog(self.window)
+        dialog.setWindowTitle(title)
+        dialog.setModal(True)
+        dialog.resize(520, 250)
+        self._apply_dialog_style(dialog)
+
+        layout = QVBoxLayout(dialog)
+        helper = QLabel(help_text)
+        helper.setWordWrap(True)
+        layout.addWidget(helper)
+
+        combo = QComboBox()
+        combo.addItems(actions)
+        layout.addWidget(combo)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        ok_button = buttons.button(QDialogButtonBox.Ok)
+        cancel_button = buttons.button(QDialogButtonBox.Cancel)
+        if ok_button:
+            ok_button.setText("다음")
+        if cancel_button:
+            cancel_button.setText("취소")
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.Accepted:
+            return ""
+        return combo.currentText().strip()
+
+    def _show_form_dialog(self, title, help_text, fields, submit_label="확인"):
+        dialog = QDialog(self.window)
+        dialog.setWindowTitle(title)
+        dialog.setModal(True)
+        dialog.resize(640, 420)
+        self._apply_dialog_style(dialog)
+
+        layout = QVBoxLayout(dialog)
+        helper = QLabel(help_text)
+        helper.setWordWrap(True)
+        layout.addWidget(helper)
+
+        form_layout = QFormLayout()
+        widgets = {}
+        for field in fields:
+            name = field["name"]
+            label = field["label"]
+            field_type = field.get("type", "text")
+            default = field.get("default", "")
+            if field_type == "int":
+                widget = QSpinBox()
+                widget.setRange(-1000000, 1000000)
+                widget.setValue(int(default))
+            elif field_type == "float":
+                widget = QDoubleSpinBox()
+                widget.setRange(-1000000.0, 1000000.0)
+                widget.setValue(float(default))
+            else:
+                widget = QLineEdit()
+                widget.setText(str(default))
+            widgets[name] = widget
+            form_layout.addRow(label, widget)
+        layout.addLayout(form_layout)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        ok_button = buttons.button(QDialogButtonBox.Ok)
+        cancel_button = buttons.button(QDialogButtonBox.Cancel)
+        if ok_button:
+            ok_button.setText(submit_label)
+        if cancel_button:
+            cancel_button.setText("취소")
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.Accepted:
+            return {}
+
+        result = {}
+        for name, widget in widgets.items():
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                result[name] = widget.value()
+            else:
+                result[name] = widget.text().strip()
+        return result

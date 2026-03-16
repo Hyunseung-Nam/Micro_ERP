@@ -64,39 +64,57 @@ class MainWindow(QMainWindow):
         self.userInfoLabel = self.ui.findChild(QLabel, "userInfoLabel")
 
     def _apply_style(self):
-        """가독성 중심 기본 스타일과 테이블 동작을 설정한다."""
+        """현대적인 운영 콘솔 톤으로 스타일과 상호작용을 설정한다."""
         self.resize(1320, 760)
         self.setFont(QFont("Apple SD Gothic Neo", 11))
         self.setStyleSheet(
             """
-            QWidget { background: #f4f6f8; color: #1c1f23; }
+            QWidget { background: #eef3fb; color: #162032; }
             QLineEdit {
                 background: #ffffff;
-                border: 1px solid #d0d7de;
-                border-radius: 8px;
-                padding: 8px;
+                border: 1px solid #c7d2e5;
+                border-radius: 12px;
+                padding: 10px 12px;
             }
+            QLineEdit:focus { border: 2px solid #2563eb; }
             QPushButton {
                 background: #ffffff;
-                border: 1px solid #c9d1d9;
-                border-radius: 8px;
+                border: 1px solid #c7d0df;
+                border-radius: 12px;
                 padding: 8px 12px;
-                min-height: 34px;
+                min-height: 36px;
+                font-weight: 600;
             }
-            QPushButton:hover { background: #f0f4f8; }
+            QPushButton:hover { background: #edf3ff; border-color: #94a8cc; }
+            QPushButton#inboundButton, QPushButton#orderButton, QPushButton#approvalButton {
+                background: #2563eb;
+                border: 1px solid #1d4ed8;
+                color: #ffffff;
+            }
+            QPushButton#inboundButton:hover, QPushButton#orderButton:hover, QPushButton#approvalButton:hover {
+                background: #1e40af;
+            }
+            QPushButton#outboundButton, QPushButton#returnButton {
+                background: #fff4f1;
+                border: 1px solid #fecaca;
+                color: #9a3412;
+            }
+            QPushButton#outboundButton:hover, QPushButton#returnButton:hover {
+                background: #ffe7df;
+            }
             QTableWidget {
                 background: #ffffff;
-                border: 1px solid #d7dde4;
-                border-radius: 10px;
-                gridline-color: #eef1f4;
-                selection-background-color: #d9ecff;
+                border: 1px solid #cfd8e7;
+                border-radius: 14px;
+                gridline-color: #edf2f8;
+                selection-background-color: #d9e7ff;
             }
             QHeaderView::section {
-                background: #f7f9fb;
-                color: #4b5563;
+                background: #f4f7fd;
+                color: #3b4e68;
                 border: none;
-                border-bottom: 1px solid #e5e7eb;
-                padding: 8px;
+                border-bottom: 1px solid #dde5f2;
+                padding: 9px;
                 font-weight: 600;
             }
             """

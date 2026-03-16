@@ -82,6 +82,11 @@
       }
       button.primary:hover { background: var(--primary-strong); }
       button:hover { background: #f3f7fb; }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+        background: #f3f4f7;
+      }
       .kpi-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(160px, 1fr));
@@ -107,6 +112,20 @@
       tr.low { background: var(--danger-bg); }
       .danger { color: var(--danger); font-weight: 700; }
       .status { font-size: 12px; color: var(--muted); margin-top: 8px; }
+      .notice {
+        margin-bottom: 12px;
+        border-radius: 10px;
+        border: 1px solid #dbe4f2;
+        background: #f7faff;
+        padding: 9px 12px;
+        font-size: 13px;
+        color: #355174;
+      }
+      .notice.error {
+        border-color: #f3b7b7;
+        background: #fff2f2;
+        color: #9f1f1f;
+      }
       .login-modal, .dialog-overlay {
         position: fixed; inset: 0; background: rgba(16, 24, 40, 0.45);
         display: flex; align-items: center; justify-content: center; z-index: 20;
@@ -170,6 +189,7 @@
         <div class="card" style="padding:10px;"><button id="refreshBtn" class="primary">새로고침</button></div>
         <div class="card" style="padding:10px;"><button id="requestAdjustBtn">승인요청 생성</button></div>
       </div>
+      <div id="globalNotice" class="notice">로그인 후 운영 지표를 불러오세요.</div>
 
       <div class="kpi-grid">
         <div class="card kpi"><div class="label">총 품목 수</div><div id="kpiItems" class="value">0</div><div class="sub">활성 재고 품목</div></div>
@@ -234,6 +254,17 @@
       </div>
     </div>
 
+    <div id="rejectOverlay" class="dialog-overlay hidden">
+      <div class="dialog">
+        <h3>반려 처리</h3>
+        <label>반려 사유<textarea id="rejectReason" placeholder="요청자에게 전달할 사유를 입력하세요."></textarea></label>
+        <div class="dialog-actions">
+          <button id="rejectCancel">취소</button>
+          <button id="rejectConfirm" class="primary">반려 확정</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       const state = {
         token: "",
@@ -241,6 +272,7 @@
         inventory: [],
         approvals: [],
         audits: [],
+        rejectApprovalId: null,
       };
 
       const $ = (id) => document.getElementById(id);
@@ -276,10 +308,25 @@
           state.me = await api("/api/auth/me");
           $("userBadge").textContent = `사용자: ${state.me.username} (${state.me.role})`;
           $("loginModal").classList.add("hidden");
+          setNotice("로그인되었습니다. 최신 운영 데이터를 불러옵니다.");
+          updateActionAvailability();
           await refreshAll();
         } catch (error) {
           $("loginError").textContent = `로그인 실패: ${error.message}`;
         }
+      }
+
+      function setNotice(message, isError = false) {
+        const notice = $("globalNotice");
+        notice.textContent = message;
+        notice.classList.toggle("error", Boolean(isError));
+      }
+
+      function updateActionAvailability() {
+        const requestButton = $("requestAdjustBtn");
+        const canRequest = hasScope("approval.request");
+        requestButton.disabled = !canRequest;
+        requestButton.title = canRequest ? "재고조정 승인요청을 생성합니다." : "현재 계정에는 승인요청 생성 권한이 없습니다.";
       }
 
       function hasScope(scope) {
@@ -351,6 +398,11 @@
 
       function renderApprovals() {
         const body = $("approvalBody");
+        if (!hasScope("approval.read")) {
+          body.innerHTML = '<tr><td colspan="4">현재 계정은 승인함 조회 권한이 없습니다.</td></tr>';
+          $("kpiPending").textContent = "-";
+          return;
+        }
         if (!state.approvals.length) {
           body.innerHTML = '<tr><td colspan="4">대기 승인 없음</td></tr>';
           $("kpiPending").textContent = "0";
@@ -378,13 +430,14 @@
             try {
               if (act === "approve") {
                 await api(`/api/approvals/${id}/approve`, "POST", {});
+                setNotice(`승인 요청 #${id}를 승인했습니다.`);
               } else {
-                const reason = prompt("반려 사유", "") || "";
-                await api(`/api/approvals/${id}/reject`, "POST", { reason });
+                openRejectDialog(id);
+                return;
               }
               await refreshAll();
             } catch (error) {
-              alert(error.message);
+              setNotice(`승인 처리 실패: ${error.message}`, true);
             }
           });
         });
@@ -392,6 +445,11 @@
 
       function renderAudits() {
         const body = $("auditBody");
+        if (!hasScope("audit.read")) {
+          body.innerHTML = '<tr><td colspan="4">현재 계정은 감사 로그 조회 권한이 없습니다.</td></tr>';
+          $("kpiAudit").textContent = "-";
+          return;
+        }
         if (!state.audits.length) {
           body.innerHTML = '<tr><td colspan="4">로그 없음</td></tr>';
           $("kpiAudit").textContent = "0";
@@ -424,17 +482,22 @@
           renderApprovals();
           renderAudits();
           $("timeBadge").textContent = new Date().toLocaleString();
+          setNotice("운영 데이터가 최신 상태로 갱신되었습니다.");
         } catch (error) {
           $("timeBadge").textContent = "업데이트 실패";
-          alert(`데이터 갱신 실패: ${error.message}`);
+          setNotice(`데이터 갱신 실패: ${error.message}`, true);
         }
       }
 
       function openRequestDialog() {
         if (!hasScope("approval.request")) {
-          alert("승인요청 생성 권한이 없습니다.");
+          setNotice("현재 계정에는 승인요청 생성 권한이 없습니다.", true);
           return;
         }
+        $("reqItemId").value = "";
+        $("reqLocationId").value = "";
+        $("reqDelta").value = "0";
+        $("reqReason").value = "";
         $("dialogOverlay").classList.remove("hidden");
       }
 
@@ -449,6 +512,14 @@
           deltaQuantity: Number($("reqDelta").value || 0),
           reason: $("reqReason").value.trim(),
         };
+        if (!payload.itemId || !payload.locationId) {
+          setNotice("승인요청 생성 전 품목 ID와 위치 ID를 입력해 주세요.", true);
+          return;
+        }
+        if (!Number.isFinite(payload.deltaQuantity) || payload.deltaQuantity === 0) {
+          setNotice("증감 수량은 0이 아닌 숫자로 입력해 주세요.", true);
+          return;
+        }
 
         try {
           await api("/api/approvals", "POST", {
@@ -457,14 +528,41 @@
           });
           closeRequestDialog();
           await refreshAll();
-          alert("승인요청이 등록되었습니다.");
+          setNotice("승인요청이 등록되었습니다.");
         } catch (error) {
-          alert(`승인요청 실패: ${error.message}`);
+          setNotice(`승인요청 실패: ${error.message}`, true);
+        }
+      }
+
+      function openRejectDialog(approvalId) {
+        state.rejectApprovalId = approvalId;
+        $("rejectReason").value = "";
+        $("rejectOverlay").classList.remove("hidden");
+      }
+
+      function closeRejectDialog() {
+        state.rejectApprovalId = null;
+        $("rejectOverlay").classList.add("hidden");
+      }
+
+      async function submitReject() {
+        if (!state.rejectApprovalId) return;
+        const reason = $("rejectReason").value.trim();
+        try {
+          await api(`/api/approvals/${state.rejectApprovalId}/reject`, "POST", { reason });
+          setNotice(`승인 요청 #${state.rejectApprovalId}를 반려했습니다.`);
+          closeRejectDialog();
+          await refreshAll();
+        } catch (error) {
+          setNotice(`반려 처리 실패: ${error.message}`, true);
         }
       }
 
       function bindEvents() {
         $("loginBtn").addEventListener("click", login);
+        $("loginPassword").addEventListener("keydown", (event) => {
+          if (event.key === "Enter") login();
+        });
         $("refreshBtn").addEventListener("click", refreshAll);
         $("searchInput").addEventListener("input", applySearchAndRender);
         $("requestAdjustBtn").addEventListener("click", openRequestDialog);
@@ -473,6 +571,12 @@
         $("dialogOverlay").addEventListener("click", (event) => {
           if (event.target === $("dialogOverlay")) closeRequestDialog();
         });
+        $("rejectCancel").addEventListener("click", closeRejectDialog);
+        $("rejectConfirm").addEventListener("click", submitReject);
+        $("rejectOverlay").addEventListener("click", (event) => {
+          if (event.target === $("rejectOverlay")) closeRejectDialog();
+        });
+        updateActionAvailability();
       }
 
       bindEvents();
