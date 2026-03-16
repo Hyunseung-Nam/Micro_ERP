@@ -41,6 +41,8 @@ class MainController:
         self._connect_signals()
         if self.use_api:
             self._bootstrap_api_session()
+        elif getattr(self.window, "userInfoLabel", None):
+            self.window.userInfoLabel.setText("사용자: 로컬 모드")
         self.refresh_inventory_table()
 
     def _connect_signals(self):
@@ -71,13 +73,22 @@ class MainController:
         credentials = self._show_login_dialog()
         if not credentials:
             self.use_api = False
-            self._show_info("API 모드를 취소했습니다. 로컬 모드로 동작합니다.")
+            if getattr(self.window, "userInfoLabel", None):
+                self.window.userInfoLabel.setText("사용자: 로컬 모드")
+            self._show_info("로그인을 건너뛰어 로컬 모드로 시작합니다.\n필요 시 앱을 다시 실행해 서버 로그인할 수 있습니다.")
             return
 
         login = self.api_client.login(credentials["username"], credentials["password"])
         if not login.ok:
             self.use_api = False
-            self._show_error(f"API 로그인 실패: {login.message}\n로컬 모드로 전환합니다.")
+            if getattr(self.window, "userInfoLabel", None):
+                self.window.userInfoLabel.setText("사용자: 로컬 모드")
+            self._show_error(
+                "서버 로그인에 실패했습니다.\n"
+                f"사유: {login.message}\n\n"
+                "로컬 모드로 전환합니다.\n"
+                "서버 주소와 계정을 확인한 뒤 다시 실행해 주세요."
+            )
             return
 
         if getattr(self.window, "userInfoLabel", None):
@@ -88,10 +99,15 @@ class MainController:
         dialog = QDialog(self.window)
         dialog.setWindowTitle("API 로그인")
         dialog.setModal(True)
-        dialog.resize(520, 260)
+        dialog.resize(640, 340)
+        self._apply_dialog_style(dialog)
 
         layout = QVBoxLayout(dialog)
-        helper = QLabel("서버 연동 모드로 시작합니다.\n아이디와 비밀번호를 입력해 주세요.")
+        helper = QLabel(
+            "서버 연동 모드로 시작합니다.\n"
+            "아이디와 비밀번호를 함께 입력해 주세요.\n"
+            "취소를 누르면 로컬 모드로 시작됩니다."
+        )
         helper.setWordWrap(True)
         layout.addWidget(helper)
 
@@ -124,6 +140,8 @@ class MainController:
 
     def open_inbound_dialog(self):
         dialog = self._load_dialog("inbound_dialog.ui")
+        dialog.setWindowTitle("입고 등록")
+        self._attach_dialog_hint(dialog, "구매/입고된 재고를 등록합니다.")
         self._prefill_dialog(dialog, include_partner=True, include_location=True, include_unit=True)
         if self._run_dialog(dialog):
             data = self._collect_inbound(dialog)
@@ -131,6 +149,8 @@ class MainController:
 
     def open_outbound_dialog(self):
         dialog = self._load_dialog("outbound_dialog.ui")
+        dialog.setWindowTitle("출고 등록")
+        self._attach_dialog_hint(dialog, "판매/사용으로 감소한 재고를 등록합니다.")
         self._prefill_dialog(dialog, include_location=True, include_unit=True)
         if self._run_dialog(dialog):
             data = self._collect_outbound(dialog)
@@ -138,6 +158,8 @@ class MainController:
 
     def open_order_dialog(self):
         dialog = self._load_dialog("order_dialog.ui")
+        dialog.setWindowTitle("발주 등록")
+        self._attach_dialog_hint(dialog, "거래처 기준으로 발주를 생성합니다.")
         self._prefill_dialog(dialog, include_partner=True, include_unit=True)
         if self._run_dialog(dialog):
             data = self._collect_order(dialog)
@@ -145,6 +167,8 @@ class MainController:
 
     def open_return_dialog(self):
         dialog = self._load_dialog("return_dialog.ui")
+        dialog.setWindowTitle("반품 등록")
+        self._attach_dialog_hint(dialog, "고객/공급처 반품 내역을 재고에 반영합니다.")
         self._prefill_dialog(dialog, include_partner=True, include_location=True, include_unit=True)
         if self._run_dialog(dialog):
             data = self._collect_return(dialog)
@@ -152,6 +176,8 @@ class MainController:
 
     def open_move_dialog(self):
         dialog = self._load_dialog("move_dialog.ui")
+        dialog.setWindowTitle("재고 이동 등록")
+        self._attach_dialog_hint(dialog, "창고/매장 간 재고 이동을 기록합니다.")
         self._prefill_dialog(dialog, include_location=True, include_unit=True)
         self._prefill_move_locations(dialog)
         if self._run_dialog(dialog):
@@ -164,7 +190,7 @@ class MainController:
             if not result.ok:
                 self._show_error(result.message)
                 return
-            self._show_info("입고가 API 서버에 반영되었습니다.")
+            self._show_info("입고 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
             return
 
@@ -177,7 +203,7 @@ class MainController:
             if not result.ok:
                 self._show_error(result.message)
                 return
-            self._show_info("출고가 API 서버에 반영되었습니다.")
+            self._show_info("출고 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
             return
 
@@ -209,7 +235,7 @@ class MainController:
             if not result.ok:
                 self._show_error(result.message)
                 return
-            self._show_info("반품 처리가 API 서버에 반영되었습니다.")
+            self._show_info("반품 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
             return
 
@@ -226,7 +252,7 @@ class MainController:
             if not in_result.ok:
                 self._show_error(in_result.message)
                 return
-            self._show_info("재고 이동이 API 서버에 반영되었습니다.")
+            self._show_info("재고 이동 내역이 서버에 반영되었습니다.")
             self.refresh_inventory_table()
             return
 
@@ -235,7 +261,7 @@ class MainController:
 
     def undo_last_event(self):
         if self.use_api:
-            self._show_error("API 모드에서는 감사 추적 보존을 위해 되돌리기를 지원하지 않습니다.")
+            self._show_info("서버 연동 모드에서는 감사 추적 보존을 위해 되돌리기를 제공하지 않습니다.")
             return
         if not is_admin_mode():
             self._show_error("관리자 모드에서만 되돌리기를 사용할 수 있습니다.")
@@ -265,7 +291,11 @@ class MainController:
     def _refresh_inventory_from_api(self):
         response = self.api_client.get_inventory()
         if not response.ok:
-            self._show_error(response.message)
+            self._show_error(
+                "서버에서 재고를 불러오지 못했습니다.\n"
+                f"사유: {response.message}\n\n"
+                "서버 실행 상태와 로그인 정보를 확인해 주세요."
+            )
             return
 
         rows = response.payload if isinstance(response.payload, list) else []
@@ -365,13 +395,13 @@ class MainController:
             self.window.safetyBadgeLabel.setText(f"안전재고 부족: {len(shortages)}건")
         if self.window.statusLabel:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            source = "API" if self.use_api else "로컬"
+            source = "서버연동" if self.use_api else "로컬"
             self.window.statusLabel.setText(f"{source} | 총 {len(rows)}개 품목 | 마지막 갱신 {now}")
 
     def open_dashboard(self):
         dialog = self._load_dialog("dashboard_dialog.ui")
         if self.use_api:
-            self._set_label_text(dialog, "totalInboundLabel", "API 운영 모드")
+            self._set_label_text(dialog, "totalInboundLabel", "서버 연동 모드")
             self._set_label_text(dialog, "totalOutboundLabel", "감사 로그에서 확인")
             self._set_label_text(dialog, "totalReturnLabel", "워크플로우 내역 확인")
             self._set_label_text(dialog, "netChangeLabel", "웹 운영 콘솔 참고")
@@ -399,7 +429,10 @@ class MainController:
 
     def open_approval_dialog(self):
         if not self.use_api:
-            self._show_info("로컬 모드에서는 승인함을 사용할 수 없습니다.")
+            self._show_info(
+                "현재 로컬 모드로 실행 중입니다.\n"
+                "승인함 기능은 서버 로그인 후 사용할 수 있습니다."
+            )
             return
 
         action, ok = QInputDialog.getItem(
@@ -474,7 +507,10 @@ class MainController:
 
     def open_workflow_dialog(self):
         if not self.use_api:
-            self._show_info("업종 워크플로우는 API 모드에서 동작합니다.")
+            self._show_info(
+                "현재 로컬 모드로 실행 중입니다.\n"
+                "업종 워크플로우는 서버 로그인 후 사용할 수 있습니다."
+            )
             return
 
         workflow, ok = QInputDialog.getItem(
@@ -554,7 +590,7 @@ class MainController:
 
     def _handle_result(self, result):
         if not result or not result.ok:
-            self._show_error(result.message if result else "작업에 실패했습니다.")
+            self._show_error(result.message if result else "요청을 처리하지 못했습니다. 입력값을 확인해 주세요.")
             return
         self._after_event(result.message or "작업이 완료되었습니다.")
 
@@ -580,10 +616,52 @@ class MainController:
             file.close()
 
         if isinstance(widget, QDialog):
+            self._apply_dialog_style(widget)
+            widget.resize(640, 420)
             return widget
         dialog = QDialog()
         dialog.setLayout(widget.layout())
+        self._apply_dialog_style(dialog)
+        dialog.resize(640, 420)
         return dialog
+
+    def _apply_dialog_style(self, dialog):
+        dialog.setStyleSheet(
+            """
+            QDialog { background: #f4f6f8; color: #1c1f23; }
+            QLabel { color: #334155; font-size: 12px; }
+            QLineEdit, QSpinBox, QComboBox {
+                background: #ffffff;
+                border: 1px solid #cfd8e3;
+                border-radius: 8px;
+                min-height: 34px;
+                padding: 4px 8px;
+            }
+            QPushButton {
+                background: #ffffff;
+                border: 1px solid #c9d1d9;
+                border-radius: 8px;
+                min-height: 34px;
+                padding: 6px 12px;
+                font-weight: 600;
+            }
+            QPushButton:hover { background: #eef4fa; }
+            """
+        )
+
+    def _attach_dialog_hint(self, dialog, text):
+        if dialog.findChild(QLabel, "hintLabel"):
+            return
+        layout = dialog.layout()
+        if not layout:
+            return
+        hint = QLabel(text)
+        hint.setObjectName("hintLabel")
+        hint.setWordWrap(True)
+        hint.setStyleSheet(
+            "background:#eef4fb; border:1px solid #d5e3f5; border-radius:8px; padding:8px; color:#2d4a6b;"
+        )
+        layout.insertWidget(0, hint)
 
     def _run_dialog(self, dialog):
         confirm = dialog.findChild(QPushButton, "confirmButton")
