@@ -104,6 +104,27 @@ class MainWindow(QMainWindow):
 
         if self.searchLineEdit:
             self.searchLineEdit.setPlaceholderText("품목 ID/이름/카테고리/위치 검색")
+            self.searchLineEdit.setToolTip("재고 테이블에서 품목과 위치를 빠르게 검색합니다.")
+
+        # 업무 버튼에 간단한 목적 안내를 넣어 초심자도 동선을 이해할 수 있게 한다.
+        if self.inboundButton:
+            self.inboundButton.setToolTip("구매/납품으로 재고를 증가시킵니다.")
+        if self.outboundButton:
+            self.outboundButton.setToolTip("판매/사용으로 재고를 감소시킵니다.")
+        if self.orderButton:
+            self.orderButton.setToolTip("거래처 기준 발주를 생성합니다.")
+        if self.returnButton:
+            self.returnButton.setToolTip("고객/공급처 반품을 재고에 반영합니다.")
+        if self.moveButton:
+            self.moveButton.setToolTip("창고/매장 간 재고를 이동합니다.")
+        if self.dashboardButton:
+            self.dashboardButton.setToolTip("월간 입출고 요약을 조회합니다.")
+        if self.approvalButton:
+            self.approvalButton.setToolTip("승인 요청 조회/승인/반려를 처리합니다.")
+        if self.workflowButton:
+            self.workflowButton.setToolTip("병원/쇼핑몰 업종별 특화 업무를 실행합니다.")
+        if self.refreshButton:
+            self.refreshButton.setToolTip("서버 또는 로컬 데이터로 재고 테이블을 새로고침합니다.")
 
         if isinstance(self.inventoryTable, QTableWidget):
             table = self.inventoryTable

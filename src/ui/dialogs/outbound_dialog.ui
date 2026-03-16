@@ -3,7 +3,7 @@
  <class>OutboundDialog</class>
  <widget class="QDialog" name="OutboundDialog">
   <property name="windowTitle">
-   <string>Outbound</string>
+   <string>출고</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -11,7 +11,7 @@
      <item row="0" column="0">
       <widget class="QLabel" name="itemIdLabel">
        <property name="text">
-        <string>Item ID</string>
+        <string>품목 ID</string>
        </property>
       </widget>
      </item>
@@ -21,7 +21,7 @@
      <item row="1" column="0">
       <widget class="QLabel" name="quantityLabel">
        <property name="text">
-        <string>Quantity</string>
+        <string>수량</string>
        </property>
       </widget>
      </item>
@@ -38,7 +38,7 @@
      <item row="2" column="0">
       <widget class="QLabel" name="unitLabel">
        <property name="text">
-        <string>Unit</string>
+        <string>단위</string>
        </property>
       </widget>
      </item>
@@ -48,7 +48,7 @@
      <item row="3" column="0">
       <widget class="QLabel" name="locationLabel">
        <property name="text">
-        <string>Location</string>
+        <string>위치</string>
        </property>
       </widget>
      </item>
@@ -58,7 +58,7 @@
      <item row="4" column="0">
       <widget class="QLabel" name="reasonLabel">
        <property name="text">
-        <string>Reason</string>
+        <string>사유</string>
        </property>
       </widget>
      </item>
@@ -72,14 +72,14 @@
      <item>
       <widget class="QPushButton" name="confirmButton">
        <property name="text">
-        <string>Confirm</string>
+        <string>확인</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="cancelButton">
        <property name="text">
-        <string>Cancel</string>
+        <string>취소</string>
        </property>
       </widget>
      </item>

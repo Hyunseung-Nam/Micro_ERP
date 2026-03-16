@@ -3,7 +3,7 @@
  <class>DashboardDialog</class>
  <widget class="QDialog" name="DashboardDialog">
   <property name="windowTitle">
-   <string>Dashboard</string>
+   <string>대시보드</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -11,7 +11,7 @@
      <item row="0" column="0">
       <widget class="QLabel" name="totalInboundTitle">
        <property name="text">
-        <string>Total Inbound</string>
+        <string>총 입고</string>
        </property>
       </widget>
      </item>
@@ -25,7 +25,7 @@
      <item row="1" column="0">
       <widget class="QLabel" name="totalOutboundTitle">
        <property name="text">
-        <string>Total Outbound</string>
+        <string>총 출고</string>
        </property>
       </widget>
      </item>
@@ -39,7 +39,7 @@
      <item row="2" column="0">
       <widget class="QLabel" name="totalReturnTitle">
        <property name="text">
-        <string>Total Return</string>
+        <string>총 반품</string>
        </property>
       </widget>
      </item>
@@ -53,7 +53,7 @@
      <item row="3" column="0">
       <widget class="QLabel" name="netChangeTitle">
        <property name="text">
-        <string>Net Change</string>
+        <string>순변동</string>
        </property>
       </widget>
      </item>

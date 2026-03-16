@@ -8,6 +8,8 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
+    QDialogButtonBox,
+    QFormLayout,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -17,6 +19,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
+    QVBoxLayout,
 )
 
 from config import is_admin_mode
@@ -65,19 +68,13 @@ class MainController:
             self.window.workflowButton.clicked.connect(self.open_workflow_dialog)
 
     def _bootstrap_api_session(self):
-        username, ok = QInputDialog.getText(self.window, "API Login", "Username:", text="admin")
-        if not ok:
+        credentials = self._show_login_dialog()
+        if not credentials:
             self.use_api = False
             self._show_info("API 모드를 취소했습니다. 로컬 모드로 동작합니다.")
             return
 
-        password, ok = QInputDialog.getText(self.window, "API Login", "Password:", QLineEdit.Password, "admin123")
-        if not ok:
-            self.use_api = False
-            self._show_info("API 모드를 취소했습니다. 로컬 모드로 동작합니다.")
-            return
-
-        login = self.api_client.login(username.strip(), password)
+        login = self.api_client.login(credentials["username"], credentials["password"])
         if not login.ok:
             self.use_api = False
             self._show_error(f"API 로그인 실패: {login.message}\n로컬 모드로 전환합니다.")
@@ -85,7 +82,45 @@ class MainController:
 
         if getattr(self.window, "userInfoLabel", None):
             role = self.api_client.current_role or "UNKNOWN"
-            self.window.userInfoLabel.setText(f"User: {self.api_client.current_user} ({role})")
+            self.window.userInfoLabel.setText(f"사용자: {self.api_client.current_user} ({role})")
+
+    def _show_login_dialog(self):
+        dialog = QDialog(self.window)
+        dialog.setWindowTitle("API 로그인")
+        dialog.setModal(True)
+        dialog.resize(520, 260)
+
+        layout = QVBoxLayout(dialog)
+        helper = QLabel("서버 연동 모드로 시작합니다.\n아이디와 비밀번호를 입력해 주세요.")
+        helper.setWordWrap(True)
+        layout.addWidget(helper)
+
+        form = QFormLayout()
+        username = QLineEdit()
+        username.setText("admin")
+        username.setPlaceholderText("아이디")
+        password = QLineEdit()
+        password.setEchoMode(QLineEdit.Password)
+        password.setText("admin123")
+        password.setPlaceholderText("비밀번호")
+        form.addRow("아이디", username)
+        form.addRow("비밀번호", password)
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        ok_button = buttons.button(QDialogButtonBox.Ok)
+        cancel_button = buttons.button(QDialogButtonBox.Cancel)
+        if ok_button:
+            ok_button.setText("로그인")
+        if cancel_button:
+            cancel_button.setText("취소")
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.Accepted:
+            return None
+        return {"username": username.text().strip(), "password": password.text()}
 
     def open_inbound_dialog(self):
         dialog = self._load_dialog("inbound_dialog.ui")
@@ -330,16 +365,16 @@ class MainController:
             self.window.safetyBadgeLabel.setText(f"안전재고 부족: {len(shortages)}건")
         if self.window.statusLabel:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            source = "API" if self.use_api else "LOCAL"
+            source = "API" if self.use_api else "로컬"
             self.window.statusLabel.setText(f"{source} | 총 {len(rows)}개 품목 | 마지막 갱신 {now}")
 
     def open_dashboard(self):
         dialog = self._load_dialog("dashboard_dialog.ui")
         if self.use_api:
-            self._set_label_text(dialog, "totalInboundLabel", "API mode")
-            self._set_label_text(dialog, "totalOutboundLabel", "Use audit logs")
-            self._set_label_text(dialog, "totalReturnLabel", "Use workflow")
-            self._set_label_text(dialog, "netChangeLabel", "Use BI/report")
+            self._set_label_text(dialog, "totalInboundLabel", "API 운영 모드")
+            self._set_label_text(dialog, "totalOutboundLabel", "감사 로그에서 확인")
+            self._set_label_text(dialog, "totalReturnLabel", "워크플로우 내역 확인")
+            self._set_label_text(dialog, "netChangeLabel", "웹 운영 콘솔 참고")
             self._run_dialog(dialog)
             return
 
@@ -367,11 +402,18 @@ class MainController:
             self._show_info("로컬 모드에서는 승인함을 사용할 수 없습니다.")
             return
 
-        action, ok = QInputDialog.getItem(self.window, "Approval", "Action", ["List Pending", "Approve", "Reject", "Request Adjust"], 0, False)
+        action, ok = QInputDialog.getItem(
+            self.window,
+            "승인함",
+            "실행 작업",
+            ["대기 목록 조회", "승인", "반려", "재고조정 승인요청"],
+            0,
+            False,
+        )
         if not ok:
             return
 
-        if action == "List Pending":
+        if action == "대기 목록 조회":
             result = self.api_client.list_approvals("PENDING")
             if not result.ok:
                 self._show_error(result.message)
@@ -380,18 +422,18 @@ class MainController:
             if not payload:
                 self._show_info("대기 중인 승인 요청이 없습니다.")
                 return
-            lines = [f"#{row.get('approvalId')} {row.get('requestType')} by {row.get('requestedBy')}" for row in payload]
+            lines = [f"#{row.get('approvalId')} {row.get('requestType')} | 요청자: {row.get('requestedBy')}" for row in payload]
             self._show_info("\n".join(lines))
             return
 
-        if action in {"Approve", "Reject"}:
-            approval_id, ok = QInputDialog.getInt(self.window, "Approval", "Approval ID", 1, 1)
+        if action in {"승인", "반려"}:
+            approval_id, ok = QInputDialog.getInt(self.window, "승인 처리", "승인 ID", 1, 1)
             if not ok:
                 return
-            if action == "Approve":
+            if action == "승인":
                 result = self.api_client.approve(approval_id)
             else:
-                reason, ok = QInputDialog.getText(self.window, "Reject", "Reason")
+                reason, ok = QInputDialog.getText(self.window, "반려 처리", "반려 사유")
                 if not ok:
                     return
                 result = self.api_client.reject(approval_id, reason)
@@ -402,16 +444,16 @@ class MainController:
             self.refresh_inventory_table()
             return
 
-        item_id, ok = QInputDialog.getText(self.window, "Approval Request", "Item ID")
+        item_id, ok = QInputDialog.getText(self.window, "승인요청 생성", "품목 ID")
         if not ok:
             return
-        location_id, ok = QInputDialog.getText(self.window, "Approval Request", "Location ID")
+        location_id, ok = QInputDialog.getText(self.window, "승인요청 생성", "위치 ID")
         if not ok:
             return
-        delta, ok = QInputDialog.getInt(self.window, "Approval Request", "Delta Quantity", 0, -1000000, 1000000)
+        delta, ok = QInputDialog.getInt(self.window, "승인요청 생성", "증감 수량(+/-)", 0, -1000000, 1000000)
         if not ok:
             return
-        reason, ok = QInputDialog.getText(self.window, "Approval Request", "Reason")
+        reason, ok = QInputDialog.getText(self.window, "승인요청 생성", "사유")
         if not ok:
             return
 
@@ -428,7 +470,7 @@ class MainController:
             self._show_error(result.message)
             return
         approval_id = (result.payload or {}).get("approvalId", "")
-        self._show_info(f"승인 요청이 등록되었습니다. approvalId={approval_id}")
+        self._show_info(f"승인 요청이 등록되었습니다. 승인 ID={approval_id}")
 
     def open_workflow_dialog(self):
         if not self.use_api:
@@ -437,29 +479,29 @@ class MainController:
 
         workflow, ok = QInputDialog.getItem(
             self.window,
-            "Industry Workflow",
-            "Workflow",
-            ["Hospital Consume", "Ecommerce Return/Exchange"],
+            "업종 워크플로우",
+            "업무 시나리오",
+            ["병원 사용량 차감", "쇼핑몰 반품/교환"],
             0,
             False,
         )
         if not ok:
             return
 
-        if workflow == "Hospital Consume":
-            item_id, ok = QInputDialog.getText(self.window, "Hospital", "Item ID")
+        if workflow == "병원 사용량 차감":
+            item_id, ok = QInputDialog.getText(self.window, "병원 워크플로우", "품목 ID")
             if not ok:
                 return
-            location_id, ok = QInputDialog.getText(self.window, "Hospital", "Location ID")
+            location_id, ok = QInputDialog.getText(self.window, "병원 워크플로우", "위치 ID")
             if not ok:
                 return
-            quantity, ok = QInputDialog.getInt(self.window, "Hospital", "Quantity", 1, 1)
+            quantity, ok = QInputDialog.getInt(self.window, "병원 워크플로우", "사용 수량", 1, 1)
             if not ok:
                 return
-            department, ok = QInputDialog.getText(self.window, "Hospital", "Department", text="ER")
+            department, ok = QInputDialog.getText(self.window, "병원 워크플로우", "부서", text="ER")
             if not ok:
                 return
-            note, ok = QInputDialog.getText(self.window, "Hospital", "Note")
+            note, ok = QInputDialog.getText(self.window, "병원 워크플로우", "메모")
             if not ok:
                 return
 
@@ -471,22 +513,22 @@ class MainController:
             self.refresh_inventory_table()
             return
 
-        item_id, ok = QInputDialog.getText(self.window, "Ecommerce", "Item ID")
+        item_id, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "품목 ID")
         if not ok:
             return
-        return_location, ok = QInputDialog.getText(self.window, "Ecommerce", "Return Location ID")
+        return_location, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "반품 위치 ID")
         if not ok:
             return
-        ship_location, ok = QInputDialog.getText(self.window, "Ecommerce", "Ship Location ID")
+        ship_location, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "교환 출고 위치 ID")
         if not ok:
             return
-        return_qty, ok = QInputDialog.getInt(self.window, "Ecommerce", "Return Quantity", 1, 1)
+        return_qty, ok = QInputDialog.getInt(self.window, "쇼핑몰 워크플로우", "반품 수량", 1, 1)
         if not ok:
             return
-        exchange_qty, ok = QInputDialog.getInt(self.window, "Ecommerce", "Exchange Quantity", 0, 0)
+        exchange_qty, ok = QInputDialog.getInt(self.window, "쇼핑몰 워크플로우", "교환 수량", 0, 0)
         if not ok:
             return
-        order_no, ok = QInputDialog.getText(self.window, "Ecommerce", "Marketplace Order No")
+        order_no, ok = QInputDialog.getText(self.window, "쇼핑몰 워크플로우", "마켓 주문번호")
         if not ok:
             return
 
@@ -644,7 +686,14 @@ class MainController:
 
     def _get_combo(self, dialog, name):
         widget = dialog.findChild(QComboBox, name)
-        return widget.currentText().strip().upper() if widget else "CUSTOMER"
+        if not widget:
+            return "CUSTOMER"
+        selected = widget.currentText().strip().upper()
+        if selected in {"고객", "CUSTOMER"}:
+            return "CUSTOMER"
+        if selected in {"공급처", "SUPPLIER"}:
+            return "SUPPLIER"
+        return "CUSTOMER"
 
     def _set_label_text(self, dialog, name, value):
         widget = dialog.findChild(QLabel, name)
