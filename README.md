@@ -68,3 +68,38 @@ python3 src/main.py
 
 ## 참고
 - 로컬 테스트 전용입니다.
+
+---
+
+## 리팩터링 이력
+
+### 2025-03-19: 확장성·유지보수성 개선 (refactoring.mdc 준수)
+
+**목표**  
+입력/출력·UX·데이터·API·config·파일 구조는 유지한 채, Controller 비대화 해소 및 책임 분리.
+
+**변경 요약**
+- **재고 테이블 행 로직 분리**: `modules/inventory_table_builder.py` 추가
+  - `build_inventory_rows(inventory, items, search_text, shortage_ids)`로 테이블용 행 리스트 생성
+  - `INVENTORY_TABLE_HEADERS` 상수로 헤더 정의
+  - UI 없이 단위 테스트·재사용 가능
+- **다이얼로그 공통 로직 분리**: `ui/dialog_helpers.py` 추가
+  - `DialogHelper`: UI 로딩, 스타일, 프리필, 폼 수집, 액션/폼 다이얼로그
+  - Controller는 `DialogHelper`에 위임하여 다이얼로그 처리
+- **Controller 역할 축소**: 이벤트 연결 → 서비스/API 호출 → 화면 갱신만 담당 (오케스트레이션)
+
+**영향 파일**
+- `src/modules/controller.py` (리팩터, 내부 private 메서드 제거)
+- `src/modules/inventory_table_builder.py` (신규)
+- `src/ui/dialog_helpers.py` (신규)
+- `tests/verify_refactor.py` (신규, 검증 스크립트)
+
+**검증**
+- `python3 tests/verify_refactor.py`: 재고 행 빌더·모듈 참조 동작 확인
+- 기존 `tests/test_inventory_rules.py` 통과
+
+**리스크**
+- 낮음. 공개 API·config·DB·실행 방식 변경 없음.
+
+**롤백**
+- `inventory_table_builder.py`, `ui/dialog_helpers.py` 삭제 후, controller.py를 이전 버전으로 복원.

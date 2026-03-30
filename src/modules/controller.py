@@ -2,21 +2,17 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QFile, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
-    QComboBox,
     QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QMessageBox,
     QPushButton,
-    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -25,6 +21,8 @@ from PySide6.QtWidgets import (
 from config import is_admin_mode
 from modules import dashboard, event_engine, inventory_service, order_service, storage
 from modules.api_client import ApiClient
+from modules.inventory_table_builder import INVENTORY_TABLE_HEADERS, build_inventory_rows
+from ui.dialog_helpers import DialogHelper
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +36,8 @@ class MainController:
         self.use_api = self.api_client.enabled
         self.data = storage.load_all_data()
         self.inventory = inventory_service.rebuild_inventory(self.data.get("events", []))
+        dialogs_path = Path(__file__).resolve().parent.parent / "ui" / "dialogs"
+        self._dialogs = DialogHelper(window, dialogs_path, lambda: self.data)
         self._connect_signals()
         if self.use_api:
             self._bootstrap_api_session()
@@ -100,7 +100,7 @@ class MainController:
         dialog.setWindowTitle("API 로그인")
         dialog.setModal(True)
         dialog.resize(640, 340)
-        self._apply_dialog_style(dialog)
+        self._dialogs.apply_dialog_style(dialog)
 
         layout = QVBoxLayout(dialog)
         helper = QLabel(
@@ -139,49 +139,49 @@ class MainController:
         return {"username": username.text().strip(), "password": password.text()}
 
     def open_inbound_dialog(self):
-        dialog = self._load_dialog("inbound_dialog.ui")
+        dialog = self._dialogs.load_dialog("inbound_dialog.ui")
         dialog.setWindowTitle("입고 등록")
-        self._attach_dialog_hint(dialog, "구매/입고된 재고를 등록합니다.")
-        self._prefill_dialog(dialog, include_partner=True, include_location=True, include_unit=True)
-        if self._run_dialog(dialog):
-            data = self._collect_inbound(dialog)
+        self._dialogs.attach_dialog_hint(dialog, "구매/입고된 재고를 등록합니다.")
+        self._dialogs.prefill_dialog(dialog, include_partner=True, include_location=True, include_unit=True)
+        if self._dialogs.run_dialog(dialog):
+            data = self._dialogs.collect_inbound(dialog)
             self.confirm_inbound(data)
 
     def open_outbound_dialog(self):
-        dialog = self._load_dialog("outbound_dialog.ui")
+        dialog = self._dialogs.load_dialog("outbound_dialog.ui")
         dialog.setWindowTitle("출고 등록")
-        self._attach_dialog_hint(dialog, "판매/사용으로 감소한 재고를 등록합니다.")
-        self._prefill_dialog(dialog, include_location=True, include_unit=True)
-        if self._run_dialog(dialog):
-            data = self._collect_outbound(dialog)
+        self._dialogs.attach_dialog_hint(dialog, "판매/사용으로 감소한 재고를 등록합니다.")
+        self._dialogs.prefill_dialog(dialog, include_location=True, include_unit=True)
+        if self._dialogs.run_dialog(dialog):
+            data = self._dialogs.collect_outbound(dialog)
             self.confirm_outbound(data)
 
     def open_order_dialog(self):
-        dialog = self._load_dialog("order_dialog.ui")
+        dialog = self._dialogs.load_dialog("order_dialog.ui")
         dialog.setWindowTitle("발주 등록")
-        self._attach_dialog_hint(dialog, "거래처 기준으로 발주를 생성합니다.")
-        self._prefill_dialog(dialog, include_partner=True, include_unit=True)
-        if self._run_dialog(dialog):
-            data = self._collect_order(dialog)
+        self._dialogs.attach_dialog_hint(dialog, "거래처 기준으로 발주를 생성합니다.")
+        self._dialogs.prefill_dialog(dialog, include_partner=True, include_unit=True)
+        if self._dialogs.run_dialog(dialog):
+            data = self._dialogs.collect_order(dialog)
             self.confirm_order(data)
 
     def open_return_dialog(self):
-        dialog = self._load_dialog("return_dialog.ui")
+        dialog = self._dialogs.load_dialog("return_dialog.ui")
         dialog.setWindowTitle("반품 등록")
-        self._attach_dialog_hint(dialog, "고객/공급처 반품 내역을 재고에 반영합니다.")
-        self._prefill_dialog(dialog, include_partner=True, include_location=True, include_unit=True)
-        if self._run_dialog(dialog):
-            data = self._collect_return(dialog)
+        self._dialogs.attach_dialog_hint(dialog, "고객/공급처 반품 내역을 재고에 반영합니다.")
+        self._dialogs.prefill_dialog(dialog, include_partner=True, include_location=True, include_unit=True)
+        if self._dialogs.run_dialog(dialog):
+            data = self._dialogs.collect_return(dialog)
             self.confirm_return(data)
 
     def open_move_dialog(self):
-        dialog = self._load_dialog("move_dialog.ui")
+        dialog = self._dialogs.load_dialog("move_dialog.ui")
         dialog.setWindowTitle("재고 이동 등록")
-        self._attach_dialog_hint(dialog, "창고/매장 간 재고 이동을 기록합니다.")
-        self._prefill_dialog(dialog, include_location=True, include_unit=True)
-        self._prefill_move_locations(dialog)
-        if self._run_dialog(dialog):
-            data = self._collect_move(dialog)
+        self._dialogs.attach_dialog_hint(dialog, "창고/매장 간 재고 이동을 기록합니다.")
+        self._dialogs.prefill_dialog(dialog, include_location=True, include_unit=True)
+        self._dialogs.prefill_move_locations(dialog)
+        if self._dialogs.run_dialog(dialog):
+            data = self._dialogs.collect_move(dialog)
             self.confirm_move(data)
 
     def confirm_inbound(self, data):
@@ -369,48 +369,12 @@ class MainController:
         search_text = ""
         if self.window.searchLineEdit:
             search_text = self.window.searchLineEdit.text().strip().lower()
-
-        item_map = {item.get("item_id"): item for item in items if item.get("item_id")}
         shortages = set(inventory_service.check_safety_stock(inventory, items))
-
-        merged_ids = sorted(set(item_map.keys()) | set(inventory.keys()))
-        rows = []
-        for item_id in merged_ids:
-            entry = inventory.get(item_id, {"total": 0, "locations": {}, "unit": ""})
-            meta = item_map.get(item_id, {})
-            item_name = meta.get("item_name", "")
-            category = meta.get("category", "")
-            locations = ", ".join(
-                f"{loc}:{qty}" for loc, qty in sorted(entry.get("locations", {}).items()) if qty != 0
-            ) or "-"
-            safety = int(meta.get("safety_stock", 0) or 0)
-            total = int(entry.get("total", 0) or 0)
-            reorder_qty = int(meta.get("reorder_qty", 0) or 0)
-            recommended = max(safety - total, 0)
-            if recommended == 0 and total < safety and reorder_qty > 0:
-                recommended = reorder_qty
-
-            searchable = " ".join([item_id, item_name, category, locations]).lower()
-            if search_text and search_text not in searchable:
-                continue
-
-            rows.append(
-                {
-                    "item_id": item_id,
-                    "item_name": item_name or "-",
-                    "category": category or "-",
-                    "total": total,
-                    "unit": entry.get("unit") or meta.get("unit") or "-",
-                    "safety": safety,
-                    "recommended": recommended,
-                    "locations": locations,
-                    "is_low": item_id in shortages,
-                }
-            )
+        rows = build_inventory_rows(inventory, items, search_text, shortages)
 
         table.clear()
         table.setColumnCount(8)
-        table.setHorizontalHeaderLabels(["품목 ID", "품목명", "카테고리", "현재고", "단위", "안전재고", "권장발주", "위치별 재고"])
+        table.setHorizontalHeaderLabels(INVENTORY_TABLE_HEADERS)
         table.setRowCount(len(rows))
 
         for row_index, row in enumerate(rows):
@@ -437,20 +401,20 @@ class MainController:
             self.window.statusLabel.setText(f"{source} | 총 {len(rows)}개 품목 | 마지막 갱신 {now}")
 
     def open_dashboard(self):
-        dialog = self._load_dialog("dashboard_dialog.ui")
+        dialog = self._dialogs.load_dialog("dashboard_dialog.ui")
         if self.use_api:
-            self._set_label_text(dialog, "totalInboundLabel", "서버 연동 모드")
-            self._set_label_text(dialog, "totalOutboundLabel", "감사 로그에서 확인")
-            self._set_label_text(dialog, "totalReturnLabel", "워크플로우 내역 확인")
-            self._set_label_text(dialog, "netChangeLabel", "웹 운영 콘솔 참고")
-            self._run_dialog(dialog)
+            self._dialogs.set_label_text(dialog, "totalInboundLabel", "서버 연동 모드")
+            self._dialogs.set_label_text(dialog, "totalOutboundLabel", "감사 로그에서 확인")
+            self._dialogs.set_label_text(dialog, "totalReturnLabel", "워크플로우 내역 확인")
+            self._dialogs.set_label_text(dialog, "netChangeLabel", "웹 운영 콘솔 참고")
+            self._dialogs.run_dialog(dialog)
             return
 
         data = dashboard.build_monthly_dashboard(self.data.get("events", []))
-        self._set_label_text(dialog, "totalInboundLabel", str(data["total_inbound"]))
-        self._set_label_text(dialog, "totalOutboundLabel", str(data["total_outbound"]))
-        self._set_label_text(dialog, "totalReturnLabel", str(data["total_return"]))
-        self._set_label_text(dialog, "netChangeLabel", str(data["net_change"]))
+        self._dialogs.set_label_text(dialog, "totalInboundLabel", str(data["total_inbound"]))
+        self._dialogs.set_label_text(dialog, "totalOutboundLabel", str(data["total_outbound"]))
+        self._dialogs.set_label_text(dialog, "totalReturnLabel", str(data["total_return"]))
+        self._dialogs.set_label_text(dialog, "netChangeLabel", str(data["net_change"]))
 
         shortage_list = dialog.findChild(QListWidget, "shortageList")
         top_list = dialog.findChild(QListWidget, "topTurnoverList")
@@ -463,7 +427,7 @@ class MainController:
             top_list.clear()
             for item_id, score in dashboard.top_turnover_items(self.data.get("events", [])):
                 top_list.addItem(f"{item_id}: {score}")
-        self._run_dialog(dialog)
+        self._dialogs.run_dialog(dialog)
 
     def open_approval_dialog(self):
         if not self.use_api:
@@ -473,7 +437,7 @@ class MainController:
             )
             return
 
-        action = self._show_compact_action_dialog(
+        action = self._dialogs.show_compact_action_dialog(
             title="승인함",
             help_text="승인 대기 목록 확인 또는 승인 처리를 선택하세요.",
             actions=["대기 목록 조회", "승인", "반려", "재고조정 승인요청"],
@@ -495,7 +459,7 @@ class MainController:
             return
 
         if action in {"승인", "반려"}:
-            form = self._show_form_dialog(
+            form = self._dialogs.show_form_dialog(
                 title=f"{action} 처리",
                 help_text="승인 ID를 입력해 요청을 처리합니다.",
                 fields=[{"name": "approval_id", "label": "승인 ID", "type": "int", "default": 1}],
@@ -507,7 +471,7 @@ class MainController:
             if action == "승인":
                 result = self.api_client.approve(approval_id)
             else:
-                reason_form = self._show_form_dialog(
+                reason_form = self._dialogs.show_form_dialog(
                     title="반려 사유 입력",
                     help_text="반려 사유를 입력하면 요청자에게 더 빠르게 공유할 수 있습니다.",
                     fields=[{"name": "reason", "label": "반려 사유", "type": "text", "default": ""}],
@@ -524,7 +488,7 @@ class MainController:
             self.refresh_inventory_table()
             return
 
-        request_form = self._show_form_dialog(
+        request_form = self._dialogs.show_form_dialog(
             title="재고조정 승인요청 생성",
             help_text="즉시 반영이 아닌 승인 프로세스로 재고 조정을 요청합니다.",
             fields=[
@@ -569,7 +533,7 @@ class MainController:
             )
             return
 
-        workflow = self._show_compact_action_dialog(
+        workflow = self._dialogs.show_compact_action_dialog(
             title="업종 워크플로우",
             help_text="업종별 프로세스를 선택해 표준 업무를 빠르게 처리합니다.",
             actions=["병원 사용량 차감", "쇼핑몰 반품/교환"],
@@ -578,7 +542,7 @@ class MainController:
             return
 
         if workflow == "병원 사용량 차감":
-            form = self._show_form_dialog(
+            form = self._dialogs.show_form_dialog(
                 title="병원 사용량 차감",
                 help_text="부서별 사용 내역을 재고에서 차감합니다.",
                 fields=[
@@ -609,7 +573,7 @@ class MainController:
             self.refresh_inventory_table()
             return
 
-        form = self._show_form_dialog(
+        form = self._dialogs.show_form_dialog(
             title="쇼핑몰 반품/교환",
             help_text="반품 접수와 교환 출고를 한 번에 처리합니다.",
             fields=[
@@ -666,184 +630,6 @@ class MainController:
         self.refresh_inventory_table()
         self._show_info(message)
 
-    def _load_dialog(self, filename):
-        ui_path = Path(__file__).resolve().parent.parent / "ui" / "dialogs" / filename
-        loader = QUiLoader()
-        file = QFile(str(ui_path))
-        try:
-            if not file.open(QFile.ReadOnly):
-                _LOGGER.error("Dialog open failed: %s", ui_path)
-                return QDialog()
-            widget = loader.load(file)
-            if widget is None:
-                _LOGGER.error("Dialog load failed: %s", ui_path)
-                return QDialog()
-        finally:
-            file.close()
-
-        if isinstance(widget, QDialog):
-            self._apply_dialog_style(widget)
-            widget.resize(640, 420)
-            return widget
-        dialog = QDialog()
-        dialog.setLayout(widget.layout())
-        self._apply_dialog_style(dialog)
-        dialog.resize(640, 420)
-        return dialog
-
-    def _apply_dialog_style(self, dialog):
-        dialog.setStyleSheet(
-            """
-            QDialog { background: #f4f6f8; color: #1c1f23; }
-            QLabel { color: #334155; font-size: 12px; }
-            QLineEdit, QSpinBox, QComboBox {
-                background: #ffffff;
-                border: 1px solid #cfd8e3;
-                border-radius: 8px;
-                min-height: 34px;
-                padding: 4px 8px;
-            }
-            QPushButton {
-                background: #ffffff;
-                border: 1px solid #c9d1d9;
-                border-radius: 8px;
-                min-height: 34px;
-                padding: 6px 12px;
-                font-weight: 600;
-            }
-            QPushButton:hover { background: #eef4fa; }
-            """
-        )
-
-    def _attach_dialog_hint(self, dialog, text):
-        if dialog.findChild(QLabel, "hintLabel"):
-            return
-        layout = dialog.layout()
-        if not layout:
-            return
-        hint = QLabel(text)
-        hint.setObjectName("hintLabel")
-        hint.setWordWrap(True)
-        hint.setStyleSheet(
-            "background:#eef4fb; border:1px solid #d5e3f5; border-radius:8px; padding:8px; color:#2d4a6b;"
-        )
-        layout.insertWidget(0, hint)
-
-    def _run_dialog(self, dialog):
-        confirm = dialog.findChild(QPushButton, "confirmButton")
-        cancel = dialog.findChild(QPushButton, "cancelButton")
-        if confirm:
-            confirm.clicked.connect(dialog.accept)
-        if cancel:
-            cancel.clicked.connect(dialog.reject)
-        return dialog.exec() == QDialog.Accepted
-
-    def _prefill_dialog(self, dialog, include_partner=False, include_location=False, include_unit=False):
-        items = self.data.get("items", [])
-        partners = self.data.get("partners", [])
-        locations = self.data.get("locations", [])
-
-        if items:
-            first_item = items[0]
-            self._set_text_if_empty(dialog, "itemIdLineEdit", first_item.get("item_id", ""))
-            if include_unit:
-                self._set_text_if_empty(dialog, "unitLineEdit", first_item.get("unit", ""))
-
-        if include_partner and partners:
-            self._set_text_if_empty(dialog, "partnerLineEdit", partners[0].get("partner_id", ""))
-
-        if include_location and locations:
-            self._set_text_if_empty(dialog, "locationLineEdit", locations[0].get("location_id", ""))
-
-    def _prefill_move_locations(self, dialog):
-        locations = self.data.get("locations", [])
-        if len(locations) >= 1:
-            self._set_text_if_empty(dialog, "fromLocationLineEdit", locations[0].get("location_id", ""))
-        if len(locations) >= 2:
-            self._set_text_if_empty(dialog, "toLocationLineEdit", locations[1].get("location_id", ""))
-
-    def _set_text_if_empty(self, dialog, widget_name, value):
-        if not value:
-            return
-        widget = dialog.findChild(QLineEdit, widget_name)
-        if widget and not widget.text().strip():
-            widget.setText(value)
-
-    def _collect_inbound(self, dialog):
-        return {
-            "item_id": self._get_text(dialog, "itemIdLineEdit"),
-            "quantity": self._get_spin(dialog, "quantitySpinBox"),
-            "unit": self._get_text(dialog, "unitLineEdit"),
-            "location_id": self._get_text(dialog, "locationLineEdit"),
-            "partner_id": self._get_text(dialog, "partnerLineEdit"),
-            "order_id": self._get_text(dialog, "orderIdLineEdit"),
-            "reason": self._get_text(dialog, "reasonLineEdit"),
-        }
-
-    def _collect_outbound(self, dialog):
-        return {
-            "item_id": self._get_text(dialog, "itemIdLineEdit"),
-            "quantity": self._get_spin(dialog, "quantitySpinBox"),
-            "unit": self._get_text(dialog, "unitLineEdit"),
-            "location_id": self._get_text(dialog, "locationLineEdit"),
-            "reason": self._get_text(dialog, "reasonLineEdit"),
-        }
-
-    def _collect_order(self, dialog):
-        return {
-            "item_id": self._get_text(dialog, "itemIdLineEdit"),
-            "quantity": self._get_spin(dialog, "quantitySpinBox"),
-            "unit": self._get_text(dialog, "unitLineEdit"),
-            "partner_id": self._get_text(dialog, "partnerLineEdit"),
-            "reason": self._get_text(dialog, "reasonLineEdit"),
-        }
-
-    def _collect_return(self, dialog):
-        return_type = self._get_combo(dialog, "returnTypeComboBox")
-        return {
-            "item_id": self._get_text(dialog, "itemIdLineEdit"),
-            "quantity": self._get_spin(dialog, "quantitySpinBox"),
-            "unit": self._get_text(dialog, "unitLineEdit"),
-            "return_type": return_type,
-            "location_id": self._get_text(dialog, "locationLineEdit"),
-            "partner_id": self._get_text(dialog, "partnerLineEdit"),
-            "reason": self._get_text(dialog, "reasonLineEdit"),
-        }
-
-    def _collect_move(self, dialog):
-        return {
-            "item_id": self._get_text(dialog, "itemIdLineEdit"),
-            "quantity": self._get_spin(dialog, "quantitySpinBox"),
-            "unit": self._get_text(dialog, "unitLineEdit"),
-            "from_location": self._get_text(dialog, "fromLocationLineEdit"),
-            "to_location": self._get_text(dialog, "toLocationLineEdit"),
-            "reason": self._get_text(dialog, "reasonLineEdit"),
-        }
-
-    def _get_text(self, dialog, name):
-        widget = dialog.findChild(QLineEdit, name)
-        return widget.text().strip() if widget else ""
-
-    def _get_spin(self, dialog, name):
-        widget = dialog.findChild(QSpinBox, name)
-        return int(widget.value()) if widget else 0
-
-    def _get_combo(self, dialog, name):
-        widget = dialog.findChild(QComboBox, name)
-        if not widget:
-            return "CUSTOMER"
-        selected = widget.currentText().strip().upper()
-        if selected in {"고객", "CUSTOMER"}:
-            return "CUSTOMER"
-        if selected in {"공급처", "SUPPLIER"}:
-            return "SUPPLIER"
-        return "CUSTOMER"
-
-    def _set_label_text(self, dialog, name, value):
-        widget = dialog.findChild(QLabel, name)
-        if widget:
-            widget.setText(value)
-
     def _show_error(self, message):
         QMessageBox.warning(self.window, "오류", message)
 
@@ -862,89 +648,3 @@ class MainController:
         missing = [labels.get(key, key) for key in required_keys if not str(data.get(key, "")).strip()]
         return ", ".join(missing)
 
-    def _show_compact_action_dialog(self, title, help_text, actions):
-        dialog = QDialog(self.window)
-        dialog.setWindowTitle(title)
-        dialog.setModal(True)
-        dialog.resize(520, 250)
-        self._apply_dialog_style(dialog)
-
-        layout = QVBoxLayout(dialog)
-        helper = QLabel(help_text)
-        helper.setWordWrap(True)
-        layout.addWidget(helper)
-
-        combo = QComboBox()
-        combo.addItems(actions)
-        layout.addWidget(combo)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = buttons.button(QDialogButtonBox.Ok)
-        cancel_button = buttons.button(QDialogButtonBox.Cancel)
-        if ok_button:
-            ok_button.setText("다음")
-        if cancel_button:
-            cancel_button.setText("취소")
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
-        layout.addWidget(buttons)
-
-        if dialog.exec() != QDialog.Accepted:
-            return ""
-        return combo.currentText().strip()
-
-    def _show_form_dialog(self, title, help_text, fields, submit_label="확인"):
-        dialog = QDialog(self.window)
-        dialog.setWindowTitle(title)
-        dialog.setModal(True)
-        dialog.resize(640, 420)
-        self._apply_dialog_style(dialog)
-
-        layout = QVBoxLayout(dialog)
-        helper = QLabel(help_text)
-        helper.setWordWrap(True)
-        layout.addWidget(helper)
-
-        form_layout = QFormLayout()
-        widgets = {}
-        for field in fields:
-            name = field["name"]
-            label = field["label"]
-            field_type = field.get("type", "text")
-            default = field.get("default", "")
-            if field_type == "int":
-                widget = QSpinBox()
-                widget.setRange(-1000000, 1000000)
-                widget.setValue(int(default))
-            elif field_type == "float":
-                widget = QDoubleSpinBox()
-                widget.setRange(-1000000.0, 1000000.0)
-                widget.setValue(float(default))
-            else:
-                widget = QLineEdit()
-                widget.setText(str(default))
-            widgets[name] = widget
-            form_layout.addRow(label, widget)
-        layout.addLayout(form_layout)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = buttons.button(QDialogButtonBox.Ok)
-        cancel_button = buttons.button(QDialogButtonBox.Cancel)
-        if ok_button:
-            ok_button.setText(submit_label)
-        if cancel_button:
-            cancel_button.setText("취소")
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
-        layout.addWidget(buttons)
-
-        if dialog.exec() != QDialog.Accepted:
-            return {}
-
-        result = {}
-        for name, widget in widgets.items():
-            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
-                result[name] = widget.value()
-            else:
-                result[name] = widget.text().strip()
-        return result
