@@ -19,3 +19,4 @@ data/
 .coverage
 htmlcov/
 .coveragerc
+DEVELOPMENT_LOG.md
