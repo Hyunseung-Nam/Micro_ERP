@@ -18,3 +18,4 @@ data/backup/
 data/
 .coverage
 htmlcov/
+.coveragerc
