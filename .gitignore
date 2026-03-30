@@ -16,3 +16,5 @@ Script/
 .m2/
 data/backup/
 data/
+.coverage
+htmlcov/
