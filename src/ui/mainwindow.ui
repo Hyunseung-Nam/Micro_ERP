@@ -2,115 +2,352 @@
 <ui version="4.0">
  <class>MainWindowWidget</class>
  <widget class="QWidget" name="MainWindowWidget">
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QHBoxLayout" name="mainLayout" stretch="0,1">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
-    <layout class="QHBoxLayout" name="topLayout">
-     <item>
-      <widget class="QLineEdit" name="searchLineEdit">
-       <property name="placeholderText">
-        <string>품목 검색</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="safetyBadgeLabel">
-       <property name="text">
-        <string>안전재고: 정상</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="statusLabel">
-       <property name="text">
-        <string>준비됨</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="userInfoLabel">
-       <property name="text">
-        <string>사용자: 로컬 모드</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
+    <widget class="QFrame" name="sidebarFrame">
+     <property name="minimumSize">
+      <size>
+       <width>240</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>240</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <layout class="QVBoxLayout" name="sidebarLayout">
+      <property name="spacing">
+       <number>10</number>
+      </property>
+      <property name="leftMargin">
+       <number>20</number>
+      </property>
+      <property name="topMargin">
+       <number>30</number>
+      </property>
+      <property name="rightMargin">
+       <number>20</number>
+      </property>
+      <property name="bottomMargin">
+       <number>30</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="appLogoLabel">
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>MICRO ERP</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="logoSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Fixed</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>30</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="inventoryGroupLabel">
+        <property name="text">
+         <string>재고 관리</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="inboundButton">
+        <property name="text">
+         <string>재고 입고</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="outboundButton">
+        <property name="text">
+         <string>재고 출고</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="moveButton">
+        <property name="text">
+         <string>창고 이동</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="returnButton">
+        <property name="text">
+         <string>반품 처리</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="orderGroupLabel">
+        <property name="text">
+         <string>발주 및 거래</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="orderButton">
+        <property name="text">
+         <string>신규 발주</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="approvalButton">
+        <property name="text">
+         <string>승인함</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="systemGroupLabel">
+        <property name="text">
+         <string>분석 및 설정</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="dashboardButton">
+        <property name="text">
+         <string>대시보드</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="workflowButton">
+        <property name="text">
+         <string>워크플로우</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="undoButton">
+        <property name="text">
+         <string>실행 취소</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="sidebarSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="userInfoLabel">
+        <property name="text">
+         <string>사용자 정보</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
    </item>
    <item>
-    <widget class="QTableWidget" name="inventoryTable"/>
-   </item>
-   <item>
-    <layout class="QGridLayout" name="buttonLayout">
-     <item row="0" column="0">
-      <widget class="QPushButton" name="inboundButton">
-       <property name="text">
-        <string>입고</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QPushButton" name="outboundButton">
-       <property name="text">
-        <string>출고</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="2">
-      <widget class="QPushButton" name="orderButton">
-       <property name="text">
-        <string>발주</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="3">
-      <widget class="QPushButton" name="returnButton">
-       <property name="text">
-        <string>반품</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="4">
-      <widget class="QPushButton" name="moveButton">
-       <property name="text">
-        <string>이동</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="5">
-      <widget class="QPushButton" name="dashboardButton">
-       <property name="text">
-        <string>대시보드</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="6">
-      <widget class="QPushButton" name="undoButton">
-       <property name="text">
-        <string>되돌리기</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="7">
-      <widget class="QPushButton" name="refreshButton">
-       <property name="text">
-        <string>새로고침</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="8">
-      <widget class="QPushButton" name="approvalButton">
-       <property name="text">
-        <string>승인함</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="9">
-      <widget class="QPushButton" name="workflowButton">
-       <property name="text">
-        <string>업종 워크플로우</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
+    <widget class="QFrame" name="contentFrame">
+     <layout class="QVBoxLayout" name="contentLayout">
+      <property name="spacing">
+       <number>20</number>
+      </property>
+      <property name="leftMargin">
+       <number>30</number>
+      </property>
+      <property name="topMargin">
+       <number>30</number>
+      </property>
+      <property name="rightMargin">
+       <number>30</number>
+      </property>
+      <property name="bottomMargin">
+       <number>30</number>
+      </property>
+      <item>
+       <layout class="QHBoxLayout" name="summaryCardsLayout">
+        <property name="spacing">
+         <number>20</number>
+        </property>
+        <item>
+         <widget class="QFrame" name="card1">
+          <layout class="QVBoxLayout" name="card1Layout">
+           <item>
+            <widget class="QLabel" name="card1Title">
+             <property name="text">
+              <string>전체 품목</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="card1Value">
+             <property name="text">
+              <string>0건</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="card2">
+          <layout class="QVBoxLayout" name="card2Layout">
+           <item>
+            <widget class="QLabel" name="card2Title">
+             <property name="text">
+              <string>안전재고 부족</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="card2Value">
+             <property name="text">
+              <string>0건</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="card3">
+          <layout class="QVBoxLayout" name="card3Layout">
+           <item>
+            <widget class="QLabel" name="card3Title">
+             <property name="text">
+              <string>시스템 상태</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="card3Value">
+             <property name="text">
+              <string>연결됨</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="headerLayout">
+        <item>
+         <widget class="QLineEdit" name="searchLineEdit">
+          <property name="minimumSize">
+           <size>
+            <width>400</width>
+            <height>45</height>
+           </size>
+          </property>
+          <property name="placeholderText">
+           <string>품목 ID, 이름, 위치 검색...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="headerSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="safetyBadgeLabel">
+          <property name="text">
+           <string>안전재고 상태</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="refreshButton">
+          <property name="text">
+           <string>데이터 갱신</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QTableWidget" name="inventoryTable"/>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="footerLayout">
+        <item>
+         <widget class="QLabel" name="statusLabel">
+          <property name="text">
+           <string>준비됨</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="footerSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
    </item>
   </layout>
  </widget>

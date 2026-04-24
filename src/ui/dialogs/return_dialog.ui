@@ -3,11 +3,32 @@
  <class>ReturnDialog</class>
  <widget class="QDialog" name="ReturnDialog">
   <property name="windowTitle">
-   <string>반품</string>
+   <string>반품 등록</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>25</number>
+   </property>
+   <property name="leftMargin">
+    <number>40</number>
+   </property>
+   <property name="topMargin">
+    <number>40</number>
+   </property>
+   <property name="rightMargin">
+    <number>40</number>
+   </property>
+   <property name="bottomMargin">
+    <number>40</number>
+   </property>
    <item>
     <layout class="QFormLayout" name="formLayout">
+     <property name="verticalSpacing">
+      <number>18</number>
+     </property>
+     <property name="horizontalSpacing">
+      <number>20</number>
+     </property>
      <item row="0" column="0">
       <widget class="QLabel" name="itemIdLabel">
        <property name="text">
@@ -99,7 +120,36 @@
     </layout>
    </item>
    <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="buttonLayout">
+     <property name="spacing">
+      <number>12</number>
+     </property>
+     <item>
+      <spacer name="buttonSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
      <item>
       <widget class="QPushButton" name="confirmButton">
        <property name="text">

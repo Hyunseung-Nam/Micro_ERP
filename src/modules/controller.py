@@ -75,6 +75,8 @@ class MainController:
             self.use_api = False
             if getattr(self.window, "userInfoLabel", None):
                 self.window.userInfoLabel.setText("사용자: 로컬 모드")
+            if hasattr(self.window, "card3Value"):
+                self.window.card3Value.setText("로컬 전용")
             self._show_info("로그인을 건너뛰어 로컬 모드로 시작합니다.\n필요 시 앱을 다시 실행해 서버 로그인할 수 있습니다.")
             return
 
@@ -83,6 +85,8 @@ class MainController:
             self.use_api = False
             if getattr(self.window, "userInfoLabel", None):
                 self.window.userInfoLabel.setText("사용자: 로컬 모드")
+            if hasattr(self.window, "card3Value"):
+                self.window.card3Value.setText("연결 실패")
             self._show_error(
                 "서버 로그인에 실패했습니다.\n"
                 f"사유: {login.message}\n\n"
@@ -94,6 +98,8 @@ class MainController:
         if getattr(self.window, "userInfoLabel", None):
             role = self.api_client.current_role or "UNKNOWN"
             self.window.userInfoLabel.setText(f"사용자: {self.api_client.current_user} ({role})")
+        if hasattr(self.window, "card3Value"):
+            self.window.card3Value.setText("서버 연결됨")
 
     def _show_login_dialog(self):
         dialog = QDialog(self.window)
@@ -395,6 +401,13 @@ class MainController:
 
         if self.window.safetyBadgeLabel:
             self.window.safetyBadgeLabel.setText(f"안전재고 부족: {len(shortages)}건")
+        
+        # Summary Card Updates
+        if hasattr(self.window, "card1Value"):
+            self.window.card1Value.setText(f"{len(rows)}건")
+        if hasattr(self.window, "card2Value"):
+            self.window.card2Value.setText(f"{len(shortages)}건")
+            
         if self.window.statusLabel:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             source = "서버연동" if self.use_api else "로컬"
@@ -454,8 +467,7 @@ class MainController:
             if not payload:
                 self._show_info("대기 중인 승인 요청이 없습니다.")
                 return
-            lines = [f"#{row.get('approvalId')} {row.get('requestType')} | 요청자: {row.get('requestedBy')}" for row in payload]
-            self._show_info("\n".join(lines))
+            self._show_approval_list_dialog(payload)
             return
 
         if action in {"승인", "반려"}:
@@ -524,6 +536,37 @@ class MainController:
             return
         approval_id = (result.payload or {}).get("approvalId", "")
         self._show_info(f"승인 요청이 등록되었습니다. 승인 ID={approval_id}")
+
+    def _show_approval_list_dialog(self, approvals):
+        """승인 대기 목록을 세련된 리스트로 표시한다."""
+        dialog = QDialog(self.window)
+        dialog.setWindowTitle("승인 대기 목록")
+        dialog.resize(600, 450)
+        self._dialogs.apply_dialog_style(dialog)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        
+        title = QLabel(f"총 {len(approvals)}건의 대기 중인 요청이 있습니다.")
+        layout.addWidget(title)
+        
+        list_widget = QListWidget()
+        for row in approvals:
+            item_text = (
+                f"ID: #{row.get('approvalId')}\n"
+                f"유형: {row.get('requestType')}\n"
+                f"요청자: {row.get('requestedBy')}\n"
+                f"일시: {row.get('requestedAt', '-')}\n"
+            )
+            list_widget.addItem(item_text)
+        layout.addWidget(list_widget)
+        
+        close_btn = QPushButton("닫기")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
 
     def open_workflow_dialog(self):
         if not self.use_api:

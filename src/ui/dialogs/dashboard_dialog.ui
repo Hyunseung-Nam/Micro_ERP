@@ -3,11 +3,32 @@
  <class>DashboardDialog</class>
  <widget class="QDialog" name="DashboardDialog">
   <property name="windowTitle">
-   <string>대시보드</string>
+   <string>월간 입출고 통계</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>25</number>
+   </property>
+   <property name="leftMargin">
+    <number>40</number>
+   </property>
+   <property name="topMargin">
+    <number>40</number>
+   </property>
+   <property name="rightMargin">
+    <number>40</number>
+   </property>
+   <property name="bottomMargin">
+    <number>40</number>
+   </property>
    <item>
     <layout class="QGridLayout" name="summaryLayout">
+     <property name="verticalSpacing">
+      <number>15</number>
+     </property>
+     <property name="horizontalSpacing">
+      <number>30</number>
+     </property>
      <item row="0" column="0">
       <widget class="QLabel" name="totalInboundTitle">
        <property name="text">
@@ -68,11 +89,36 @@
    </item>
    <item>
     <layout class="QHBoxLayout" name="listsLayout">
+     <property name="spacing">
+      <number>20</number>
+     </property>
      <item>
-      <widget class="QListWidget" name="shortageList"/>
+      <layout class="QVBoxLayout" name="leftListLayout">
+       <item>
+        <widget class="QLabel" name="shortageListTitle">
+         <property name="text">
+          <string>안전재고 부족 품목</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="shortageList"/>
+       </item>
+      </layout>
      </item>
      <item>
-      <widget class="QListWidget" name="topTurnoverList"/>
+      <layout class="QVBoxLayout" name="rightListLayout">
+       <item>
+        <widget class="QLabel" name="topTurnoverTitle">
+         <property name="text">
+          <string>최다 유동 품목</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListWidget" name="topTurnoverList"/>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>
