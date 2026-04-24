@@ -6,7 +6,7 @@ Controller와 분리하여 확장성·유지보수성을 높인다.
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import QFile
+from PySide6.QtCore import QFile, Qt
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QComboBox,
@@ -24,28 +24,63 @@ from PySide6.QtWidgets import (
 _LOGGER = logging.getLogger(__name__)
 
 DIALOG_STYLESHEET = """
-QDialog { background: #f4f6f8; color: #1c1f23; }
-QLabel { color: #334155; font-size: 12px; }
-QLineEdit, QSpinBox, QComboBox {
+QDialog { background: #ffffff; color: #1e293b; }
+QLabel { color: #475569; font-size: 14px; font-weight: 600; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QListWidget, QTableWidget {
     background: #ffffff;
-    border: 1px solid #cfd8e3;
-    border-radius: 8px;
-    min-height: 34px;
-    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    min-height: 44px;
+    padding: 10px 15px;
+    color: #1e293b;
+    font-size: 13px;
+    selection-background-color: #3b82f6;
+    selection-color: #ffffff;
+}
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
+    border: 2px solid #2563eb;
+    background: #f8fafc;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 30px;
+}
+QComboBox::down-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #64748b;
+    margin-right: 10px;
 }
 QPushButton {
-    background: #ffffff;
-    border: 1px solid #c9d1d9;
-    border-radius: 8px;
-    min-height: 34px;
-    padding: 6px 12px;
-    font-weight: 600;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    min-height: 48px;
+    padding: 12px 24px;
+    font-weight: 700;
+    color: #475569;
+    font-size: 14px;
 }
-QPushButton:hover { background: #eef4fa; }
+QPushButton:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
+QPushButton#confirmButton {
+    background: #1e3a8a;
+    border: none;
+    color: #ffffff;
+}
+QPushButton#confirmButton:hover { background: #1e40af; }
+QPushButton#confirmButton:pressed { background: #172554; }
+
+/* Selection specific fix */
+QListWidget::item:selected, QTableWidget::item:selected {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
 """
 
 HINT_STYLESHEET = (
-    "background:#eef4fb; border:1px solid #d5e3f5; border-radius:8px; padding:8px; color:#2d4a6b;"
+    "background: #eff6ff; border: 1px solid #dbeafe; border-radius: 10px; "
+    "padding: 15px; color: #1e40af; font-size: 13px; font-weight: 500; line-height: 1.4;"
 )
 
 
@@ -81,12 +116,34 @@ class DialogHelper:
 
         if isinstance(widget, QDialog):
             self.apply_dialog_style(widget)
-            widget.resize(640, 420)
+            widget.resize(700, 520)
+            if widget.layout():
+                widget.layout().setContentsMargins(40, 40, 40, 40)
+                widget.layout().setSpacing(25)
+                # FormLayout 마감 처리
+                for i in range(widget.layout().count()):
+                    item = widget.layout().itemAt(i)
+                    if item.layout() and isinstance(item.layout(), QFormLayout):
+                        fl = item.layout()
+                        fl.setSpacing(20)
+                        fl.setVerticalSpacing(18)
+                        fl.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
             return widget
         dialog = QDialog()
         dialog.setLayout(widget.layout())
         self.apply_dialog_style(dialog)
-        dialog.resize(640, 420)
+        dialog.resize(700, 520)
+        if dialog.layout():
+            dialog.layout().setContentsMargins(40, 40, 40, 40)
+            dialog.layout().setSpacing(25)
+            # FormLayout 마감 처리
+            for i in range(dialog.layout().count()):
+                item = dialog.layout().itemAt(i)
+                if item and item.layout() and isinstance(item.layout(), QFormLayout):
+                    fl = item.layout()
+                    fl.setSpacing(20)
+                    fl.setVerticalSpacing(18)
+                    fl.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
         return dialog
 
     def apply_dialog_style(self, dialog):
@@ -224,22 +281,29 @@ class DialogHelper:
         dialog = QDialog(self.parent_window)
         dialog.setWindowTitle(title)
         dialog.setModal(True)
-        dialog.resize(520, 250)
+        dialog.resize(560, 320)
         self.apply_dialog_style(dialog)
 
         layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(25)
+
         helper = QLabel(help_text)
         helper.setWordWrap(True)
+        helper.setStyleSheet(HINT_STYLESHEET)
         layout.addWidget(helper)
 
         combo = QComboBox()
         combo.addItems(actions)
         layout.addWidget(combo)
 
+        layout.addStretch()
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         ok_btn = buttons.button(QDialogButtonBox.Ok)
         cancel_btn = buttons.button(QDialogButtonBox.Cancel)
         if ok_btn:
+            ok_btn.setObjectName("confirmButton")
             ok_btn.setText("다음")
         if cancel_btn:
             cancel_btn.setText("취소")
@@ -255,15 +319,24 @@ class DialogHelper:
         dialog = QDialog(self.parent_window)
         dialog.setWindowTitle(title)
         dialog.setModal(True)
-        dialog.resize(640, 420)
+        dialog.resize(700, 520)
         self.apply_dialog_style(dialog)
 
         layout = QVBoxLayout(dialog)
-        helper = QLabel(help_text)
-        helper.setWordWrap(True)
-        layout.addWidget(helper)
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(25)
+
+        if help_text:
+            helper = QLabel(help_text)
+            helper.setWordWrap(True)
+            helper.setStyleSheet(HINT_STYLESHEET)
+            layout.addWidget(helper)
 
         form_layout = QFormLayout()
+        form_layout.setSpacing(20)
+        form_layout.setVerticalSpacing(18)
+        form_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
         widgets = {}
         for field in fields:
             name = field["name"]
@@ -285,10 +358,14 @@ class DialogHelper:
             form_layout.addRow(label, widget)
         layout.addLayout(form_layout)
 
+        # Spacer for finish
+        layout.addStretch()
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         ok_btn = buttons.button(QDialogButtonBox.Ok)
         cancel_btn = buttons.button(QDialogButtonBox.Cancel)
         if ok_btn:
+            ok_btn.setObjectName("confirmButton")
             ok_btn.setText(submit_label)
         if cancel_btn:
             cancel_btn.setText("취소")
