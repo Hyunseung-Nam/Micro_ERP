@@ -53,6 +53,7 @@ def main():
     storage.ensure_data_files()
     master_data.initialize_if_empty()
     app = QApplication([])
+    app.setStyle("Fusion")  # 다크모드 무관하게 stylesheet color가 정확히 적용되도록 강제
     window = MainWindow()
     controller = MainController(window)
     controller.refresh_inventory_table()

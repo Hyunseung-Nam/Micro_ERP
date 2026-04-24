@@ -16,7 +16,7 @@ class ApiClient:
 
     @property
     def enabled(self):
-        value = os.getenv("ERP_USE_API", "true").strip().lower()
+        value = os.getenv("ERP_USE_API", "false").strip().lower()
         return value in {"1", "true", "yes", "y"}
 
     def login(self, username, password):
