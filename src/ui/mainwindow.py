@@ -49,73 +49,191 @@ class MainWindow(QMainWindow):
         """주요 위젯을 속성으로 연결한다."""
         self.searchLineEdit = self.ui.findChild(QLineEdit, "searchLineEdit")
         self.inventoryTable = self.ui.findChild(QTableWidget, "inventoryTable")
+        
+        # Sidebar Buttons - 명시적 바인딩 및 디버그 확인
         self.inboundButton = self.ui.findChild(QPushButton, "inboundButton")
         self.outboundButton = self.ui.findChild(QPushButton, "outboundButton")
         self.orderButton = self.ui.findChild(QPushButton, "orderButton")
         self.returnButton = self.ui.findChild(QPushButton, "returnButton")
         self.moveButton = self.ui.findChild(QPushButton, "moveButton")
+        
         self.dashboardButton = self.ui.findChild(QPushButton, "dashboardButton")
         self.undoButton = self.ui.findChild(QPushButton, "undoButton")
         self.refreshButton = self.ui.findChild(QPushButton, "refreshButton")
         self.approvalButton = self.ui.findChild(QPushButton, "approvalButton")
         self.workflowButton = self.ui.findChild(QPushButton, "workflowButton")
+        
         self.safetyBadgeLabel = self.ui.findChild(QLabel, "safetyBadgeLabel")
         self.statusLabel = self.ui.findChild(QLabel, "statusLabel")
         self.userInfoLabel = self.ui.findChild(QLabel, "userInfoLabel")
+        
+        # Summary Cards
+        self.card1Value = self.ui.findChild(QLabel, "card1Value")
+        self.card2Value = self.ui.findChild(QLabel, "card2Value")
+        self.card3Value = self.ui.findChild(QLabel, "card3Value")
+        
+        # 바인딩 상태 로그 (개발 모드)
+        missing = [name for name, btn in {
+            "inbound": self.inboundButton, "outbound": self.outboundButton,
+            "order": self.orderButton, "return": self.returnButton, "move": self.moveButton
+        }.items() if not btn]
+        if missing:
+            self._logger.error(f"Critical Sidebar Buttons Missing: {missing}")
 
     def _apply_style(self):
         """현대적인 운영 콘솔 톤으로 스타일과 상호작용을 설정한다."""
-        self.resize(1320, 760)
-        self.setFont(QFont("Apple SD Gothic Neo", 11))
+        self.resize(1400, 900)
+        self.setFont(QFont("Apple SD Gothic Neo", 10))
+        
+        # 버튼 스타일을 더 범용적이고 확실하게 수정
         self.setStyleSheet(
             """
-            QWidget { background: #eef3fb; color: #162032; }
+            QMainWindow, QWidget#MainWindowWidget { background: #f8fafc; color: #1e293b; }
+            
+            /* Sidebar Styling */
+            QFrame#sidebarFrame {
+                background: #1e293b;
+                border: none;
+                min-width: 240px;
+            }
+            QLabel#appLogoLabel {
+                color: #f1f5f9;
+                font-size: 20px;
+                font-weight: 800;
+                margin-bottom: 20px;
+                padding: 10px;
+            }
+            QLabel#inventoryGroupLabel, QLabel#orderGroupLabel, QLabel#systemGroupLabel {
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                margin-top: 15px;
+                padding-left: 8px;
+            }
+            
+            /* 사이드바 내 모든 버튼에 대한 더 강력한 스타일 정의 */
+            #sidebarFrame QPushButton {
+                background-color: #243147;
+                border: 1px solid #1e293b;
+                border-radius: 8px;
+                color: #cbd5e1;
+                padding: 12px 16px;
+                text-align: left;
+                font-weight: 600;
+                font-size: 13px;
+                margin: 2px 0px;
+            }
+            #sidebarFrame QPushButton:hover {
+                background-color: #334155;
+                color: #f8fafc;
+                border-color: #475569;
+            }
+            #sidebarFrame QPushButton:pressed {
+                background-color: #0f172a;
+            }
+            
+            /* Content Area Styling */
+            QFrame#contentFrame {
+                background: #f8fafc;
+                border: none;
+            }
             QLineEdit {
                 background: #ffffff;
-                border: 1px solid #c7d2e5;
-                border-radius: 12px;
-                padding: 10px 12px;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 10px 15px;
+                color: #1e293b;
+                font-size: 14px;
             }
-            QLineEdit:focus { border: 2px solid #2563eb; }
-            QPushButton {
-                background: #ffffff;
-                border: 1px solid #c7d0df;
-                border-radius: 12px;
-                padding: 8px 12px;
-                min-height: 36px;
-                font-weight: 600;
+            QLineEdit:focus {
+                border: 2px solid #2563eb;
             }
-            QPushButton:hover { background: #edf3ff; border-color: #94a8cc; }
-            QPushButton#inboundButton, QPushButton#orderButton, QPushButton#approvalButton {
-                background: #2563eb;
-                border: 1px solid #1d4ed8;
+            
+            QLabel#safetyBadgeLabel {
+                background: #eff6ff;
+                color: #1e40af;
+                padding: 8px 16px;
+                border-radius: 18px;
+                font-weight: 700;
+                font-size: 12px;
+            }
+            
+            QPushButton#refreshButton {
+                background: #1e3a8a;
+                border: none;
                 color: #ffffff;
+                padding: 10px 20px;
+                border-radius: 10px;
+                font-weight: 700;
+                text-align: center;
             }
-            QPushButton#inboundButton:hover, QPushButton#orderButton:hover, QPushButton#approvalButton:hover {
+            QPushButton#refreshButton:hover {
                 background: #1e40af;
             }
-            QPushButton#outboundButton, QPushButton#returnButton {
-                background: #fff4f1;
-                border: 1px solid #fecaca;
-                color: #9a3412;
-            }
-            QPushButton#outboundButton:hover, QPushButton#returnButton:hover {
-                background: #ffe7df;
-            }
+            
             QTableWidget {
                 background: #ffffff;
-                border: 1px solid #cfd8e7;
-                border-radius: 14px;
-                gridline-color: #edf2f8;
-                selection-background-color: #d9e7ff;
+                border: 1px solid #e2e8f0;
+                border-radius: 15px;
+                gridline-color: #f1f5f9;
+                selection-background-color: #3b82f6;
+                selection-color: #ffffff;
+                outline: none;
+                color: #1e293b;
+                padding: 5px;
             }
             QHeaderView::section {
-                background: #f4f7fd;
-                color: #3b4e68;
+                background: #f8fafc;
+                color: #475569;
+                padding: 15px;
                 border: none;
-                border-bottom: 1px solid #dde5f2;
-                padding: 9px;
-                font-weight: 600;
+                border-bottom: 2px solid #3b82f6;
+                font-weight: 800;
+                font-size: 12px;
+                text-transform: uppercase;
+            }
+            QTableWidget::item {
+                padding: 10px;
+                border-bottom: 1px solid #f1f5f9;
+            }
+            
+            /* Global MessageBox Fix */
+            QMessageBox {
+                background-color: #ffffff;
+            }
+            QMessageBox QLabel {
+                color: #1e293b;
+                font-size: 14px;
+                min-width: 400px;
+            }
+            QMessageBox QPushButton {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 8px 16px;
+                min-width: 80px;
+                font-weight: 700;
+                color: #1e293b;
+            }
+            QMessageBox QPushButton:hover {
+                background: #f1f5f9;
+                color: #1e293b;
+            }
+            
+            QLabel#statusLabel {
+                color: #64748b;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            
+            QLabel#userInfoLabel {
+                color: #cbd5e1;
+                font-size: 13px;
+                background: #334155;
+                padding: 15px;
+                border-radius: 10px;
+                margin-top: 15px;
             }
             """
         )
@@ -152,9 +270,12 @@ class MainWindow(QMainWindow):
             table.setEditTriggers(QAbstractItemView.NoEditTriggers)
             table.setSortingEnabled(True)
             table.verticalHeader().setVisible(False)
+            table.verticalHeader().setDefaultSectionSize(48)  # 더 여유로운 행 높이
             header = table.horizontalHeader()
             header.setSectionResizeMode(QHeaderView.Stretch)
             header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
             header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+            header.setMinimumHeight(50)  # 더 여유로운 헤더 높이
             table.setFocusPolicy(Qt.NoFocus)
+            table.setShowGrid(False)  # 현대적인 무격자 스타일

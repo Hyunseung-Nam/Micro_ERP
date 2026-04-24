@@ -71,10 +71,35 @@ QPushButton#confirmButton {
 QPushButton#confirmButton:hover { background: #1e40af; }
 QPushButton#confirmButton:pressed { background: #172554; }
 
-/* Selection specific fix */
-QListWidget::item:selected, QTableWidget::item:selected {
+/* QListWidget 명시적 색상 (시스템 다크모드 대응) */
+QListWidget {
+    background: #ffffff;
+    color: #1e293b;
+}
+QListWidget::item {
+    background: #ffffff;
+    color: #1e293b;
+    padding: 8px;
+}
+QListWidget::item:hover {
+    background: #f1f5f9;
+}
+QListWidget::item:selected {
     background-color: #3b82f6;
     color: #ffffff;
+}
+QTableWidget::item:selected {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* QComboBox 드롭다운 팝업 (시스템 다크모드 대응) */
+QComboBox QAbstractItemView {
+    background: #ffffff;
+    color: #1e293b;
+    selection-background-color: #3b82f6;
+    selection-color: #ffffff;
+    border: 1px solid #e2e8f0;
 }
 """
 
